@@ -1,3 +1,4 @@
 compeditor
 *.exe
 *.dll
+examples/ballistic
