@@ -408,32 +408,32 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 		// do the resolution on the contact that came out on top
 		velocityChange, rotationChange := contact.applyVelocityChange()
 
-    // with the change in velocity of the two bodies, the update of contact
-    // velocities means that some of the relative closing velocities need recomputing.
-    for _, c2 := range(contacts) {
-      // check each body
-      for b:=0; b<2; b++ {
-        // check for a match with each body in the newly resolved contact
-        for d:=0; d<2; d++ {
-          if c2.Bodies[b] == contact.Bodies[d] {
-            deltaVel := rotationChange[d].Cross(&c2.relativeContactPosition[b])
-            deltaVel.Add(&velocityChange[d])
+		// with the change in velocity of the two bodies, the update of contact
+		// velocities means that some of the relative closing velocities need recomputing.
+		for _, c2 := range contacts {
+			// check each body
+			for b := 0; b < 2; b++ {
+				// check for a match with each body in the newly resolved contact
+				for d := 0; d < 2; d++ {
+					if c2.Bodies[b] == contact.Bodies[d] {
+						deltaVel := rotationChange[d].Cross(&c2.relativeContactPosition[b])
+						deltaVel.Add(&velocityChange[d])
 
-            // the sign of the change is negative if we're dealing with
-            // the second body in a contact.
-            var sign m.Real = 1.0
-            if b == 0 {
-              sign = -1.0
-            }
+						// the sign of the change is negative if we're dealing with
+						// the second body in a contact.
+						var sign m.Real = 1.0
+						if b == 0 {
+							sign = -1.0
+						}
 
-            deltaVel = c2.contactToWorld.MulVector3(&deltaVel)
-            deltaVel.MulWith(sign)
-            c2.contactVelocity.Add(&deltaVel)
-          }
-        } // d
-      } // b
-    } // c2
-    iterationsUsed++
+						deltaVel = c2.contactToWorld.MulVector3(&deltaVel)
+						deltaVel.MulWith(sign)
+						c2.contactVelocity.Add(&deltaVel)
+					}
+				} // d
+			} // b
+		} // c2
+		iterationsUsed++
 	}
 }
 
@@ -457,26 +457,26 @@ func (c *Contact) applyVelocityChange() (velocityChange, rotationChange [2]m.Vec
 		impulseContact = c.calculateFrictionImpulse(inverseInertiaTensors)
 	}
 
-  // convert impulse to world coordinates
-  impulse := c.contactToWorld.MulVector3(&impulseContact)
+	// convert impulse to world coordinates
+	impulse := c.contactToWorld.MulVector3(&impulseContact)
 
-  // split in the impulse into linear and rotation component-wise
-  impulsiveTorque := c.relativeContactPosition[0].Cross(&impulseContact)
-  rotationChange[0] = inverseInertiaTensors[0].MulVector3(&impulsiveTorque)
-  velocityChange[0].Clear()
-  velocityChange[0].AddScaled(&impulse, c.Bodies[0].GetInverseMass())
+	// split in the impulse into linear and rotation component-wise
+	impulsiveTorque := c.relativeContactPosition[0].Cross(&impulseContact)
+	rotationChange[0] = inverseInertiaTensors[0].MulVector3(&impulsiveTorque)
+	velocityChange[0].Clear()
+	velocityChange[0].AddScaled(&impulse, c.Bodies[0].GetInverseMass())
 
-  // apply the changes
-  c.Bodies[0].AddVelocity(&velocityChange[0])
-  c.Bodies[0].AddRotation(&rotationChange[0])
+	// apply the changes
+	c.Bodies[0].AddVelocity(&velocityChange[0])
+	c.Bodies[0].AddRotation(&rotationChange[0])
 
-  if c.Bodies[1] != nil {
-    // work out the second body's linear and angular changes
-    impulsiveTorque = impulse.Cross(&c.relativeContactPosition[1])
-    rotationChange[1] = inverseInertiaTensors[1].MulVector3(&impulsiveTorque)
-    velocityChange[1].Clear()
-    velocityChange[1].AddScaled(&impulse, c.Bodies[1].GetInverseMass())
-  }
+	if c.Bodies[1] != nil {
+		// work out the second body's linear and angular changes
+		impulsiveTorque = impulse.Cross(&c.relativeContactPosition[1])
+		rotationChange[1] = inverseInertiaTensors[1].MulVector3(&impulsiveTorque)
+		velocityChange[1].Clear()
+		velocityChange[1].AddScaled(&impulse, c.Bodies[1].GetInverseMass())
+	}
 
 	return
 }
@@ -525,70 +525,70 @@ func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (
 	var impulseToTorque m.Matrix3
 	setSkewSymmetric(&impulseToTorque, &c.relativeContactPosition[0])
 
-  // build the matrix to convert contact impulse to change in velocity in
-  // world coordinates
-  deltaVelWorld := impulseToTorque
-  deltaVelWorld = deltaVelWorld.MulMatrix3(&inverseInertiaTensors[0])
-  deltaVelWorld = deltaVelWorld.MulMatrix3(&impulseToTorque)
-  deltaVelWorld.MulWith(-1.0)
+	// build the matrix to convert contact impulse to change in velocity in
+	// world coordinates
+	deltaVelWorld := impulseToTorque
+	deltaVelWorld = deltaVelWorld.MulMatrix3(&inverseInertiaTensors[0])
+	deltaVelWorld = deltaVelWorld.MulMatrix3(&impulseToTorque)
+	deltaVelWorld.MulWith(-1.0)
 
-  // check to see if we need to add the second body's data
-  if c.Bodies[1] != nil {
-    // set the cross product matrix
-    setSkewSymmetric(&impulseToTorque, &c.relativeContactPosition[1])
+	// check to see if we need to add the second body's data
+	if c.Bodies[1] != nil {
+		// set the cross product matrix
+		setSkewSymmetric(&impulseToTorque, &c.relativeContactPosition[1])
 
-    // calculate the velocity change matrix
-    deltaVelWorld2 := impulseToTorque
-    deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&inverseInertiaTensors[1])
-    deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&impulseToTorque)
-    deltaVelWorld2.MulWith(-1.0)
+		// calculate the velocity change matrix
+		deltaVelWorld2 := impulseToTorque
+		deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&inverseInertiaTensors[1])
+		deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&impulseToTorque)
+		deltaVelWorld2.MulWith(-1.0)
 
-    // add to the total delta velocity
-    deltaVelWorld.Add(&deltaVelWorld2)
+		// add to the total delta velocity
+		deltaVelWorld.Add(&deltaVelWorld2)
 
-    // add to the inverse mass
-    inverseMass += c.Bodies[1].GetInverseMass()
-  }
+		// add to the inverse mass
+		inverseMass += c.Bodies[1].GetInverseMass()
+	}
 
-  // do a change of basis to convert into contact coordinates
-  deltaVelocity := c.contactToWorld.Transpose()
-  deltaVelocity = deltaVelocity.MulMatrix3(&deltaVelWorld)
-  deltaVelocity = deltaVelocity.MulMatrix3(&c.contactToWorld)
+	// do a change of basis to convert into contact coordinates
+	deltaVelocity := c.contactToWorld.Transpose()
+	deltaVelocity = deltaVelocity.MulMatrix3(&deltaVelWorld)
+	deltaVelocity = deltaVelocity.MulMatrix3(&c.contactToWorld)
 
-  // add in the linear velocity change
-  deltaVelocity[0] += inverseMass
-  deltaVelocity[4] += inverseMass
-  deltaVelocity[8] += inverseMass
+	// add in the linear velocity change
+	deltaVelocity[0] += inverseMass
+	deltaVelocity[4] += inverseMass
+	deltaVelocity[8] += inverseMass
 
-  // invert to get the impulse needed per unit velocity
-  impulseMatrix := deltaVelocity.Invert()
+	// invert to get the impulse needed per unit velocity
+	impulseMatrix := deltaVelocity.Invert()
 
-  // find the target velocities to kill
-  velKill := m.Vector3 {
-    c.desiredDeltaVelocity,
-    -c.contactVelocity[1],
-    -c.contactVelocity[2],
-  }
+	// find the target velocities to kill
+	velKill := m.Vector3{
+		c.desiredDeltaVelocity,
+		-c.contactVelocity[1],
+		-c.contactVelocity[2],
+	}
 
-  // find the impulse to kill target velocities
-  impulseContact = impulseMatrix.MulVector3(&velKill)
+	// find the impulse to kill target velocities
+	impulseContact = impulseMatrix.MulVector3(&velKill)
 
-  // check for exceeding friction
-  planarImpulse := m.Real(math.Sqrt(float64(
-    impulseContact[1]*impulseContact[1] +
-    impulseContact[2]*impulseContact[2])))
-  if planarImpulse > impulseContact[0] * c.Friction {
-    // we need to use dynamic friction
-    impulseContact[1] /= planarImpulse
-    impulseContact[2] /= planarImpulse
+	// check for exceeding friction
+	planarImpulse := m.Real(math.Sqrt(float64(
+		impulseContact[1]*impulseContact[1] +
+			impulseContact[2]*impulseContact[2])))
+	if planarImpulse > impulseContact[0]*c.Friction {
+		// we need to use dynamic friction
+		impulseContact[1] /= planarImpulse
+		impulseContact[2] /= planarImpulse
 
-    impulseContact[0] = deltaVelocity[0] +
-      deltaVelocity[3]*c.Friction*impulseContact[1] +
-      deltaVelocity[6]*c.Friction*impulseContact[2]
-    impulseContact[0] = c.desiredDeltaVelocity / impulseContact[0]
-    impulseContact[1] *= c.Friction * impulseContact[0]
-    impulseContact[2] *= c.Friction * impulseContact[0]
-  }
+		impulseContact[0] = deltaVelocity[0] +
+			deltaVelocity[3]*c.Friction*impulseContact[1] +
+			deltaVelocity[6]*c.Friction*impulseContact[2]
+		impulseContact[0] = c.desiredDeltaVelocity / impulseContact[0]
+		impulseContact[1] *= c.Friction * impulseContact[0]
+		impulseContact[2] *= c.Friction * impulseContact[0]
+	}
 
 	return
 }

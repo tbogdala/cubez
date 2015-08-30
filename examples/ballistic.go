@@ -14,7 +14,7 @@ import (
 var (
 	app *ExampleApp
 
-  cube *Renderable
+	cube         *Renderable
 	cubeCollider *cubez.CollisionCube
 
 	colorShader uint32
@@ -32,7 +32,7 @@ func updateObjects(delta float64) {
 		float32(cubeCollider.Body.Position[0]),
 		float32(cubeCollider.Body.Position[1]),
 		float32(cubeCollider.Body.Position[2]),
-		}
+	}
 	cube.LocalRotation = mgl.Quat{
 		float32(cubeCollider.Body.Orientation[0]),
 		mgl.Vec3{
@@ -40,7 +40,7 @@ func updateObjects(delta float64) {
 			float32(cubeCollider.Body.Orientation[2]),
 			float32(cubeCollider.Body.Orientation[3]),
 		},
-		}
+	}
 }
 
 // see if any of the rigid bodys contact
@@ -52,7 +52,7 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 	return cubeCollider.CheckAgainstHalfSpace(groundPlane, nil)
 }
 
-func updateCallback(delta float64)  {
+func updateCallback(delta float64) {
 	updateObjects(delta)
 	foundContacts, contacts := generateContacts(delta)
 	if foundContacts {
@@ -60,7 +60,7 @@ func updateCallback(delta float64)  {
 	}
 }
 
-func renderCallback(delta float64)  {
+func renderCallback(delta float64) {
 	gl.Viewport(0, 0, int32(app.Width), int32(app.Height))
 	gl.ClearColor(0.05, 0.05, 0.05, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -89,11 +89,10 @@ func main() {
 		panic("Failed to compile the vertex shader! " + err.Error())
 	}
 
-  // create a test cube to render
-  cube = CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+	// create a test cube to render
+	cube = CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 	cube.Shader = colorShader
 	cube.Color = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
-
 
 	// create the collision box for the the cube
 	cubeCollider = cubez.NewCollisionCube(nil, m.Vector3{0.5, 0.5, 0.5})
@@ -101,7 +100,6 @@ func main() {
 	cubeCollider.Body.SetMass(10.0)
 	cubeCollider.Body.CalculateDerivedData()
 	cubeCollider.CalculateDerivedData()
-
 
 	// setup the camera
 	app.CameraPos = mgl.Vec3{0.0, 0.0, 5.0}

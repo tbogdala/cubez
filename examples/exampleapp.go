@@ -195,7 +195,7 @@ type Renderable struct {
 	Location mgl.Vec3
 
 	// Rotation is the rotation of the object in world space
-	Rotation      mgl.Quat
+	Rotation mgl.Quat
 
 	// LocalRotation is rotation applied to the object in local space
 	LocalRotation mgl.Quat
