@@ -161,6 +161,7 @@ func (c *Contact) calculateContactBasis() {
 	c.contactToWorld.SetComponents(&c.ContactNormal, &contactTangentY, &contactTangentZ)
 }
 
+// calculateLocalVelocity calculates the velocity of the contact point on th given body.
 func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vector3 {
 	body := c.Bodies[bodyIndex]
 
@@ -186,6 +187,7 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vecto
 	return contactVelocity
 }
 
+// matchAwakeState wakes up bodies that are in contact with a body that is awake.
 func (c *Contact) matchAwakeState() {
 	// solo body collisions don't trigger a wake-up
 	if c.Bodies[1] == nil {
@@ -225,12 +227,15 @@ func ResolveContacts(maxIterations int, contacts []*Contact, duration m.Real) {
 	adjustVelocities(maxIterations, contacts, duration)
 }
 
+// prepareContacts sets up contacts for processing by calculating internal data.
 func prepareContacts(contacts []*Contact, duration m.Real) {
 	for _, e := range contacts {
 		e.calculateInternals(duration)
 	}
 }
 
+// adjustPositions resolves the positional issues with the given array of
+// constraints using the given number of iterations.
 func adjustPositions(maxIterations int, contacts []*Contact, duration m.Real) {
 	// iteratively resolve interpenetrations in order of severity
 	iterationsUsed := 0
@@ -283,6 +288,7 @@ func adjustPositions(maxIterations int, contacts []*Contact, duration m.Real) {
 	}
 }
 
+// applyPositionChange performs an inertia weighted penetration resolution of this contact alone.
 func (c *Contact) applyPositionChange(penetration m.Real) (linearChange, angularChange [2]m.Vector3) {
 	const angularLimit m.Real = 0.2
 	var angularInertia, linearInertia, angularMove, linearMove [2]m.Real
@@ -367,20 +373,17 @@ func (c *Contact) applyPositionChange(penetration m.Real) (linearChange, angular
 		linearChange[i].MulWith(linearMove[i])
 
 		// now we can start to apply the  values we've calculated, starting with linear movement
-		pos := body.Position
-		pos.AddScaled(&c.ContactNormal, linearMove[i])
-		body.Position = pos
+		body.Position.AddScaled(&c.ContactNormal, linearMove[i])
 
 		// now we do the change in orientation
-		q := body.Orientation
-		q.AddScaledVector(&angularChange[i], 1.0)
-		body.Orientation = q
+		body.Orientation.AddScaledVector(&angularChange[i], 1.0)
+		body.Orientation.Normalize()
 
 		// we need to calculate the derived data for body that is asleep, so that
 		// the changes are reflected in the object's data. otherwise the resolution
 		// will not change the position of the object and the next collision detection
 		// round will have the same penetration.
-		if body.IsAwake {
+		if body.IsAwake == false {
 			body.CalculateDerivedData()
 		}
 	}
