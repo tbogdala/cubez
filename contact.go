@@ -127,7 +127,7 @@ func (c *Contact) calculateContactBasis() {
 	// check whether the z axis is nearer to the x or y axis
 	if absContactNormalX > absContactNormalY {
 		// generate a scaling factor to ensure results are normalized
-		s := m.Real(1.0) / m.Real(math.Abs(float64(
+		s := m.Real(1.0) / m.Real(math.Sqrt(float64(
 			c.ContactNormal[2]*c.ContactNormal[2]+
 				c.ContactNormal[0]*c.ContactNormal[0])))
 
@@ -142,13 +142,13 @@ func (c *Contact) calculateContactBasis() {
 		contactTangentZ[2] = -c.ContactNormal[1] * contactTangentY[0]
 	} else {
 		// generate a scaling factor to ensure results are normalized
-		s := m.Real(1.0) / m.Real(math.Abs(float64(
+		s := m.Real(1.0) / m.Real(math.Sqrt(float64(
 			c.ContactNormal[2]*c.ContactNormal[2]+
 				c.ContactNormal[1]*c.ContactNormal[1])))
 
 		// the new x axis is at right angles to the world y axis
 		contactTangentY[0] = 0
-		contactTangentY[1] = c.ContactNormal[2] * -s
+		contactTangentY[1] = -c.ContactNormal[2] * s
 		contactTangentY[2] = c.ContactNormal[1] * s
 
 		// the new y axis is at right angles to the new x and z axes
