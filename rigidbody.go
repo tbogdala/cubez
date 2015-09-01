@@ -121,6 +121,9 @@ func (body *RigidBody) SetMass(mass m.Real) {
 
 // GetMass gets the mass of the RigidBody object.
 func (body *RigidBody) GetMass() m.Real {
+	if body.inverseMass == 0.0 {
+		return m.MaxValue
+	}
 	return body.mass
 }
 
