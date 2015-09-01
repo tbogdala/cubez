@@ -391,6 +391,8 @@ func (c *Contact) applyPositionChange(penetration m.Real) (linearChange, angular
 	return
 }
 
+// adjustVelocities resolves the velocity issues with the given array of constraints,
+// using the given number of iterations.
 func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 	// iteratively handle impacts in order of severity
 	iterationsUsed := 0
@@ -419,6 +421,9 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 		for _, c2 := range contacts {
 			// check each body
 			for b := 0; b < 2; b++ {
+				if c2.Bodies[b] == nil {
+					continue
+				}
 				// check for a match with each body in the newly resolved contact
 				for d := 0; d < 2; d++ {
 					if c2.Bodies[b] == contact.Bodies[d] {
@@ -443,6 +448,7 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 	}
 }
 
+// applyVelocityChange performs an inertia-weighted impulse based resolution of this contact alone
 func (c *Contact) applyVelocityChange() (velocityChange, rotationChange [2]m.Vector3) {
 	// get hold of the inverse mass and inverse inertia tensor, both in World Space
 	var inverseInertiaTensors [2]m.Matrix3
@@ -491,6 +497,8 @@ func (c *Contact) applyVelocityChange() (velocityChange, rotationChange [2]m.Vec
 	return
 }
 
+// calculateFrictionlessImpulse calculates the impulse needed to resolve this contact,
+// given that the contact has no friction.
 func (c *Contact) calculateFrictionlessImpulse(inverseInertiaTensors [2]m.Matrix3) (impulseContact m.Vector3) {
 	// build a vector that shows the change in velocity in World Space for
 	// a unit impulse in the direction of the contact normal
@@ -507,7 +515,7 @@ func (c *Contact) calculateFrictionlessImpulse(inverseInertiaTensors [2]m.Matrix
 	// check if we need to process the second body's data
 	if c.Bodies[1] == nil {
 		// go through the same transformation sequence again
-		deltaVelWorld := c.relativeContactPosition[1].Cross(&c.ContactNormal)
+		deltaVelWorld = c.relativeContactPosition[1].Cross(&c.ContactNormal)
 		deltaVelWorld = inverseInertiaTensors[1].MulVector3(&deltaVelWorld)
 		deltaVelWorld = deltaVelWorld.Cross(&c.relativeContactPosition[1])
 
@@ -526,6 +534,8 @@ func (c *Contact) calculateFrictionlessImpulse(inverseInertiaTensors [2]m.Matrix
 	return
 }
 
+// calculateFrictionImpulse calculates the impulse needed to resolve this contact,
+// given that the contact has a non-zero coefficient of friction.
 func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (impulseContact m.Vector3) {
 	inverseMass := c.Bodies[0].GetInverseMass()
 
@@ -537,8 +547,7 @@ func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (
 
 	// build the matrix to convert contact impulse to change in velocity in
 	// world coordinates
-	deltaVelWorld := impulseToTorque
-	deltaVelWorld = deltaVelWorld.MulMatrix3(&inverseInertiaTensors[0])
+	deltaVelWorld := impulseToTorque.MulMatrix3(&inverseInertiaTensors[0])
 	deltaVelWorld = deltaVelWorld.MulMatrix3(&impulseToTorque)
 	deltaVelWorld.MulWith(-1.0)
 
@@ -548,8 +557,7 @@ func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (
 		setSkewSymmetric(&impulseToTorque, &c.relativeContactPosition[1])
 
 		// calculate the velocity change matrix
-		deltaVelWorld2 := impulseToTorque
-		deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&inverseInertiaTensors[1])
+		deltaVelWorld2 := impulseToTorque.MulMatrix3(&inverseInertiaTensors[1])
 		deltaVelWorld2 = deltaVelWorld2.MulMatrix3(&impulseToTorque)
 		deltaVelWorld2.MulWith(-1.0)
 
