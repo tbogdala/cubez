@@ -4,10 +4,12 @@
 package cubez
 
 import (
-	m "github.com/tbogdala/cubez/math"
 	"math"
+
+	m "github.com/tbogdala/cubez/math"
 )
 
+// CollisionPlane represents a plane in space for collisions.
 type CollisionPlane struct {
 	// Normal is the plane's normal vector
 	Normal m.Vector3
@@ -16,6 +18,7 @@ type CollisionPlane struct {
 	Offset m.Real
 }
 
+// CollisionCube represents a cube in space for collisions.
 type CollisionCube struct {
 	// Body is the RigidBody that is represented by this collision object.
 	Body *RigidBody
@@ -76,6 +79,8 @@ func (cube *CollisionCube) CalculateDerivedData() {
 	cube.transform = transform.Mul3x4(&cube.Offset)
 }
 
+// CheckAgainstHalfSpace does a collision test on a collision box and a plane representing
+// a half-space (i.e. the normal of the plane points out of the half-space).
 func (cube *CollisionCube) CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact) {
 	// check for an intersection -- if there is none, then we can return
 	if !intersectCubeAndHalfSpace(cube, plane) {
@@ -149,7 +154,7 @@ func intersectCubeAndHalfSpace(cube *CollisionCube, plane *CollisionPlane) bool 
 
 	// work out how far the box is from the origin
 	axis := cube.transform.GetAxis(3)
-	cubeDistance := axis.Dot(&plane.Normal) - projectedRadius
+	cubeDistance := plane.Normal.Dot(&axis) - projectedRadius
 
 	// check for intersection
 	return cubeDistance <= plane.Offset
