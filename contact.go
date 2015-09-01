@@ -61,6 +61,7 @@ func NewContact() *Contact {
 func (c *Contact) calculateInternals(duration m.Real) {
 	// make sure that if there's only one body that it's in the first spot
 	if c.Bodies[0] == nil {
+		c.ContactNormal.MulWith(-1.0)
 		c.Bodies[0] = c.Bodies[1]
 		c.Bodies[1] = nil
 	}
