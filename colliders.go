@@ -76,7 +76,7 @@ func NewCollisionCube(optBody *RigidBody, halfSize m.Vector3) *CollisionCube {
 // collision object's offset.
 func (cube *CollisionCube) CalculateDerivedData() {
 	transform := cube.Body.GetTransform()
-	cube.transform = transform.Mul3x4(&cube.Offset)
+	cube.transform = transform.MulMatrix3x4(&cube.Offset)
 }
 
 // CheckAgainstHalfSpace does a collision test on a collision box and a plane representing

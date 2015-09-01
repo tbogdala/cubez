@@ -164,7 +164,7 @@ func (m *Matrix3x4) MulVector3(v *Vector3) Vector3 {
 
 // Mul3x4 multiplies a 3x4 matrix by another 3x4 matrix. This operation is meant
 // to mimic a 4x4 * 4x4 operation where the last row is {0, 0, 0, 1}.
-func (m *Matrix3x4) Mul3x4(o *Matrix3x4) Matrix3x4 {
+func (m *Matrix3x4) MulMatrix3x4(o *Matrix3x4) Matrix3x4 {
 	return Matrix3x4{
 		m[0]*o[0] + m[3]*o[1] + m[6]*o[2], // [0]
 		m[1]*o[0] + m[4]*o[1] + m[7]*o[2], // [1]

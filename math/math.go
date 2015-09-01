@@ -24,7 +24,7 @@ type Real float64
 
 // Espilon is used to test equality of the floats and represents how
 // close two Reals can be and still test positive for equality.
-const Epsilon Real = 1e-30
+const Epsilon Real = 1e-7
 
 const (
 	MinNormal = Real(1.1754943508222875e-38) // 1 / 2**(127 - 1)
@@ -75,4 +75,14 @@ func RealEqual(a, b Real) bool {
 	}
 
 	return diff/Real(math.Abs(float64(a))+math.Abs(float64(b))) < Epsilon
+}
+
+// DegToRad converts degrees to radians
+func DegToRad(angle Real) Real {
+	return angle * math.Pi / 180.0
+}
+
+// RadToDeg converts radians to degrees
+func RadToDeg(angle Real) Real {
+	return angle * 180.0 / math.Pi
 }

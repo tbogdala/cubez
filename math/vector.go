@@ -59,6 +59,14 @@ func (v *Vector3) MulWith(r Real) {
 	v[2] *= r
 }
 
+// Normalize sets the vector the normalized value.
+func (v *Vector3) Normalize() {
+	l := 1.0 / v.Magnitude()
+	v[0] *= l
+	v[1] *= l
+	v[2] *= l
+}
+
 // Set sets the vector equal to the values of the second vector.
 func (v *Vector3) Set(v2 *Vector3) {
 	v[0] = v2[0]
