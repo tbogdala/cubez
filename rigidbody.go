@@ -4,8 +4,9 @@
 package cubez
 
 import (
-	m "github.com/tbogdala/cubez/math"
 	"math"
+
+	m "github.com/tbogdala/cubez/math"
 )
 
 const (
@@ -18,6 +19,8 @@ var (
 	defaultAcceleration = m.Vector3{0.0, -9.78, 0.0}
 )
 
+// RigidBody is the main data structure represending an object that can
+// cause collisions and move around in the physics simulation.
 type RigidBody struct {
 	// LinearDamping holds the amount of damping applied to the linear motion
 	// of the RigidBody. This is required to remove energy that might get
@@ -147,13 +150,13 @@ func (body *RigidBody) GetInverseInertiaTensorWorld() m.Matrix3 {
 // NOTE: this function doesn't respect CanSleep.
 func (body *RigidBody) SetAwake(awake bool) {
 	if awake {
-		body.IsAwake = awake
+		body.IsAwake = true
 		// add some motion to avoid it falling asleep immediately
 		body.motion = sleepEpsilon * 2.0
 	} else {
 		body.IsAwake = false
 		body.Velocity.Clear()
-		body.Velocity.Clear()
+		body.Rotation.Clear()
 	}
 }
 
@@ -174,6 +177,8 @@ func (body *RigidBody) ClearAccumulators() {
 	body.torqueAccum[0], body.torqueAccum[1], body.torqueAccum[2] = 0.0, 0.0, 0.0
 }
 
+// Integrate takes all of the forces accumulated in the RigidBody and
+// change the Position and Orientation of the object.
 func (body *RigidBody) Integrate(duration m.Real) {
 	if body.IsAwake == false {
 		return
@@ -210,19 +215,20 @@ func (body *RigidBody) Integrate(duration m.Real) {
 
 	// update the kinetic energy store and possibly put the body to sleep
 	/*
-	  if body.CanSleep {
-	    currentMotion := body.Velocity.Dot(&body.Velocity) + body.Rotation.Dot(&body.Rotation)
-	    bias := m.Real(math.Pow(0.5, float64(duration)))
-	    body.motion = bias * body.motion + (1.0-bias) * currentMotion
+		if body.CanSleep {
+			currentMotion := body.Velocity.Dot(&body.Velocity) + body.Rotation.Dot(&body.Rotation)
+			bias := m.Real(math.Pow(0.5, float64(duration)))
+			body.motion = bias*body.motion + (1.0-bias)*currentMotion
 
-	    fmt.Printf("motion of %v; bias of %v; duration of %v; current motion %v\n", body.motion, bias, duration, currentMotion)
-	    if body.motion < sleepEpsilon {
-	      fmt.Printf("put asleep with a motion of %v\n", body.motion)
-	      body.SetAwake(false)
-	    } else if body.motion > 10 * sleepEpsilon {
-	      body.motion = 10 * sleepEpsilon
-	    }
-	  }
+			//		fmt.Printf("motion of %v; bias of %v; duration of %v; current motion %v\n", body.motion, bias, duration, currentMotion)
+			fmt.Printf("Velocity: %v ; Rotation %v ; motion %v : %v\n", body.Velocity, body.Rotation, body.motion, bias)
+			if body.motion < sleepEpsilon {
+				fmt.Printf("put asleep with a motion of %v\n", body.motion)
+				body.SetAwake(false)
+			} else if body.motion > 10*sleepEpsilon {
+				body.motion = 10 * sleepEpsilon
+			}
+		}
 	*/
 }
 
@@ -241,17 +247,17 @@ func (body *RigidBody) CalculateDerivedData() {
 
 // transformInertiaTensor is an inernal function to do an inertia tensor transform.
 func transformInertiaTensor(iitWorld *m.Matrix3, iitBody *m.Matrix3, rotmat *m.Matrix3x4) {
-	var t4 m.Real = rotmat[0]*iitBody[0] + rotmat[3]*iitBody[1] + rotmat[6]*iitBody[2]
-	var t9 m.Real = rotmat[0]*iitBody[3] + rotmat[3]*iitBody[4] + rotmat[6]*iitBody[5]
-	var t14 m.Real = rotmat[0]*iitBody[6] + rotmat[3]*iitBody[7] + rotmat[6]*iitBody[8]
+	var t4 = rotmat[0]*iitBody[0] + rotmat[3]*iitBody[1] + rotmat[6]*iitBody[2]
+	var t9 = rotmat[0]*iitBody[3] + rotmat[3]*iitBody[4] + rotmat[6]*iitBody[5]
+	var t14 = rotmat[0]*iitBody[6] + rotmat[3]*iitBody[7] + rotmat[6]*iitBody[8]
 
-	var t28 m.Real = rotmat[1]*iitBody[0] + rotmat[4]*iitBody[1] + rotmat[7]*iitBody[2]
-	var t33 m.Real = rotmat[1]*iitBody[3] + rotmat[4]*iitBody[4] + rotmat[7]*iitBody[5]
-	var t38 m.Real = rotmat[1]*iitBody[6] + rotmat[4]*iitBody[7] + rotmat[7]*iitBody[8]
+	var t28 = rotmat[1]*iitBody[0] + rotmat[4]*iitBody[1] + rotmat[7]*iitBody[2]
+	var t33 = rotmat[1]*iitBody[3] + rotmat[4]*iitBody[4] + rotmat[7]*iitBody[5]
+	var t38 = rotmat[1]*iitBody[6] + rotmat[4]*iitBody[7] + rotmat[7]*iitBody[8]
 
-	var t52 m.Real = rotmat[2]*iitBody[0] + rotmat[5]*iitBody[1] + rotmat[8]*iitBody[2]
-	var t57 m.Real = rotmat[2]*iitBody[3] + rotmat[5]*iitBody[4] + rotmat[8]*iitBody[5]
-	var t62 m.Real = rotmat[2]*iitBody[6] + rotmat[5]*iitBody[7] + rotmat[8]*iitBody[8]
+	var t52 = rotmat[2]*iitBody[0] + rotmat[5]*iitBody[1] + rotmat[8]*iitBody[2]
+	var t57 = rotmat[2]*iitBody[3] + rotmat[5]*iitBody[4] + rotmat[8]*iitBody[5]
+	var t62 = rotmat[2]*iitBody[6] + rotmat[5]*iitBody[7] + rotmat[8]*iitBody[8]
 
 	iitWorld[0] = t4*rotmat[0] + t9*rotmat[3] + t14*rotmat[6]
 	iitWorld[3] = t4*rotmat[1] + t9*rotmat[4] + t14*rotmat[7]

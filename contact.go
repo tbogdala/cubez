@@ -4,8 +4,9 @@
 package cubez
 
 import (
-	m "github.com/tbogdala/cubez/math"
 	"math"
+
+	m "github.com/tbogdala/cubez/math"
 )
 
 // a few internal epsilon values
@@ -70,15 +71,14 @@ func (c *Contact) calculateInternals(duration m.Real) {
 	// store the relative position of the contact to each body
 	c.relativeContactPosition[0].Set(&c.ContactPoint)
 	c.relativeContactPosition[0].Sub(&c.Bodies[0].Position)
-	c.calculateLocalVelocity(0, duration, &c.contactVelocity)
+	c.contactVelocity = c.calculateLocalVelocity(0, duration)
 
 	if c.Bodies[1] != nil {
 		c.relativeContactPosition[1].Set(&c.ContactPoint)
 		c.relativeContactPosition[1].Sub(&c.Bodies[1].Position)
 
-		var contactVelocity2 m.Vector3
-		c.calculateLocalVelocity(1, duration, &contactVelocity2)
-		c.contactVelocity.Sub(&contactVelocity2)
+		contactVelocity1 := c.calculateLocalVelocity(1, duration)
+		c.contactVelocity.Sub(&contactVelocity1)
 	}
 
 	// calculate the desired change in velocity for resolution
@@ -160,7 +160,7 @@ func (c *Contact) calculateContactBasis() {
 	c.contactToWorld.SetComponents(&c.ContactNormal, &contactTangentY, &contactTangentZ)
 }
 
-func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real, contactVelocity *m.Vector3) {
+func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vector3 {
 	body := c.Bodies[bodyIndex]
 
 	// work out the velocity of the contact point
@@ -168,7 +168,7 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real, contact
 	velocity.Add(&body.Velocity)
 
 	// turn the velocity into contact coordinates
-	*contactVelocity = c.contactToWorld.MulVector3(&velocity)
+	contactVelocity := c.contactToWorld.MulVector3(&velocity)
 
 	// calculate the amount of velocity that is due to forces without reactions
 	accVelocity := body.GetLastFrameAccelleration()
@@ -181,6 +181,8 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real, contact
 	// add the planar velocity -- if there's enough friction they will
 	// be removed during the velocity resolution
 	contactVelocity.Add(&accVelocity)
+
+	return contactVelocity
 }
 
 func (c *Contact) matchAwakeState() {
@@ -461,7 +463,7 @@ func (c *Contact) applyVelocityChange() (velocityChange, rotationChange [2]m.Vec
 	impulse := c.contactToWorld.MulVector3(&impulseContact)
 
 	// split in the impulse into linear and rotation component-wise
-	impulsiveTorque := c.relativeContactPosition[0].Cross(&impulseContact)
+	impulsiveTorque := c.relativeContactPosition[0].Cross(&impulse)
 	rotationChange[0] = inverseInertiaTensors[0].MulVector3(&impulsiveTorque)
 	velocityChange[0].Clear()
 	velocityChange[0].AddScaled(&impulse, c.Bodies[0].GetInverseMass())
@@ -475,7 +477,11 @@ func (c *Contact) applyVelocityChange() (velocityChange, rotationChange [2]m.Vec
 		impulsiveTorque = impulse.Cross(&c.relativeContactPosition[1])
 		rotationChange[1] = inverseInertiaTensors[1].MulVector3(&impulsiveTorque)
 		velocityChange[1].Clear()
-		velocityChange[1].AddScaled(&impulse, c.Bodies[1].GetInverseMass())
+		velocityChange[1].AddScaled(&impulse, -c.Bodies[1].GetInverseMass())
+
+		// apply the changes
+		c.Bodies[1].AddVelocity(&velocityChange[1])
+		c.Bodies[1].AddRotation(&rotationChange[1])
 	}
 
 	return
