@@ -9,7 +9,10 @@ import (
 	m "github.com/tbogdala/cubez/math"
 )
 
-// CollisionPlane represents a plane in space for collisions.
+// CollisionPlane represents a plane in space for collisions but doesn't
+// have an associated rigid body and is considered to be infinite.
+// It's primarily useful for rerepresenting immovable world geometry like
+// a giant ground plane.
 type CollisionPlane struct {
 	// Normal is the plane's normal vector
 	Normal m.Vector3
@@ -18,13 +21,11 @@ type CollisionPlane struct {
 	Offset m.Real
 }
 
-// CollisionCube represents a cube in space for collisions.
+// CollisionCube is a rigid body that can be considered an axis-alligned cube
+// for contact collision.
 type CollisionCube struct {
 	// Body is the RigidBody that is represented by this collision object.
 	Body *RigidBody
-
-	// Halfsize holds the cube's half-sizes along each of its local axes.
-	HalfSize m.Vector3
 
 	// Offset is the matrix that gives the offset of this primitive from Body.
 	Offset m.Matrix3x4
@@ -33,6 +34,27 @@ type CollisionCube struct {
 	// the transform of the Body.
 	// NOTE: this is calculated by calling CalculateDerivedData().
 	transform m.Matrix3x4
+
+	// Halfsize holds the cube's half-sizes along each of its local axes.
+	HalfSize m.Vector3
+}
+
+// CollisionSphere is a rigid body that can be considered a sphere
+// for collision detection.
+type CollisionSphere struct {
+	// Body is the RigidBody that is represented by this collision object.
+	Body *RigidBody
+
+	// Offset is the matrix that gives the offset of this primitive from Body.
+	Offset m.Matrix3x4
+
+	// transform is calculated by combining the Offset of the primitive with
+	// the transform of the Body.
+	// NOTE: this is calculated by calling CalculateDerivedData().
+	transform m.Matrix3x4
+
+	// Radius is the radius of the sphere.
+	Radius m.Real
 }
 
 /*
@@ -52,13 +74,78 @@ func NewCollisionPlane(n m.Vector3, o m.Real) *CollisionPlane {
 
 /*
 ==================================================================================================
+  COLLISION SPHERE
+==================================================================================================
+*/
+
+// NewCollisionSphere creates a new CollisionSphere object with the radius specified
+// for a given RigidBody. If a RigidBody is not specified, then a new RigidBody
+// object is created for the new collider object.
+func NewCollisionSphere(optBody *RigidBody, radius m.Real) *CollisionSphere {
+	s := new(CollisionSphere)
+	s.Offset.SetIdentity()
+	s.Radius = radius
+	s.Body = optBody
+	if s.Body == nil {
+		s.Body = NewRigidBody()
+	}
+	return s
+}
+
+// GetTransform returns a copy of the transform matrix for the collider object.
+func (s *CollisionSphere) GetTransform() m.Matrix3x4 {
+	return s.transform
+}
+
+// CalculateDerivedData internal data from public data members.
+//
+// Constructs a transform matrix based on the RigidBody's transform and the
+// collision object's offset.
+func (s *CollisionSphere) CalculateDerivedData() {
+	transform := s.Body.GetTransform()
+	s.transform = transform.MulMatrix3x4(&s.Offset)
+}
+
+// CheckAgainstHalfSpace does a collision test on a collision sphere and a plane representing
+// a half-space (i.e. the normal of the plane points out of the half-space).
+func (s *CollisionSphere) CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact) {
+	// work out the distance from the origin
+	positionAxis := s.transform.GetAxis(3)
+	distance := plane.Normal.Dot(&positionAxis) - s.Radius
+
+	// check for intersection
+	if distance <= plane.Offset == false {
+		return false, existingContacts
+	}
+
+	c := NewContact()
+	c.ContactPoint = plane.Normal
+	c.ContactPoint.MulWith(distance + s.Radius*-1.0)
+	c.ContactPoint.Add(&positionAxis)
+	c.ContactNormal = plane.Normal
+	c.Penetration = -distance
+	c.Bodies[0] = s.Body
+	c.Bodies[1] = nil
+
+	// FIXME:
+	// TODO: c.Friction and c.Restitution set here are test constants
+	c.Friction = 0.9
+	c.Restitution = 0.1
+
+	contacts := append(existingContacts, c)
+
+	return true, contacts
+}
+
+/*
+==================================================================================================
   COLLISION CUBE
 ==================================================================================================
 */
 
 // NewCollisionCube creates a new CollisionCube object with the dimensions specified
 // for a given RigidBody. If a RigidBody is not specified, then a new RigidBody
-// object is created for the CollisionCube.
+// object is created for the new collider object.
 func NewCollisionCube(optBody *RigidBody, halfSize m.Vector3) *CollisionCube {
 	cube := new(CollisionCube)
 	cube.Offset.SetIdentity()
