@@ -4,8 +4,8 @@
 package cubez
 
 import (
-	"math"
 	m "github.com/tbogdala/cubez/math"
+	"math"
 )
 
 // a few internal epsilon values
@@ -169,7 +169,7 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vecto
 	velocity.Add(&body.Velocity)
 
 	// turn the velocity into contact coordinates
-  contactTranspose := c.contactToWorld.Transpose()
+	contactTranspose := c.contactToWorld.Transpose()
 	contactVelocity := contactTranspose.MulVector3(&velocity)
 
 	// calculate the amount of velocity that is due to forces without reactions
@@ -438,11 +438,11 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 							sign = -1.0
 						}
 
-            contactTranspose := c2.contactToWorld.Transpose()
+						contactTranspose := c2.contactToWorld.Transpose()
 						deltaVel = contactTranspose.MulVector3(&deltaVel)
 						deltaVel.MulWith(sign)
 						c2.contactVelocity.Add(&deltaVel)
-            c2.calculateDesiredDeltaVelocity(duration)
+						c2.calculateDesiredDeltaVelocity(duration)
 					}
 				} // d
 			} // b
