@@ -70,6 +70,11 @@ func NewCollisionCube(optBody *RigidBody, halfSize m.Vector3) *CollisionCube {
 	return cube
 }
 
+// GetTransform returns a copy of the transform matrix for the collider object.
+func (cube *CollisionCube) GetTransform() m.Matrix3x4 {
+	return cube.transform
+}
+
 // CalculateDerivedData internal data from public data members.
 //
 // Constructs a transform matrix based on the RigidBody's transform and the

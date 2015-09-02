@@ -5,7 +5,6 @@ package cubez
 
 import (
 	"math"
-
 	m "github.com/tbogdala/cubez/math"
 )
 
@@ -170,12 +169,13 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vecto
 	velocity.Add(&body.Velocity)
 
 	// turn the velocity into contact coordinates
-	contactVelocity := c.contactToWorld.MulVector3(&velocity)
+  contactTranspose := c.contactToWorld.Transpose()
+	contactVelocity := contactTranspose.MulVector3(&velocity)
 
 	// calculate the amount of velocity that is due to forces without reactions
 	accVelocity := body.GetLastFrameAccelleration()
 	accVelocity.MulWith(duration)
-	accVelocity = c.contactToWorld.MulVector3(&accVelocity)
+	accVelocity = contactTranspose.MulVector3(&accVelocity)
 
 	// we ignore any component of acceleration in the contact normal direction
 	accVelocity[0] = 0.0
@@ -400,6 +400,7 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 		max := velocityEpsilon
 		index := len(contacts)
 		for i, c := range contacts {
+
 			if c.desiredDeltaVelocity > max {
 				max = c.desiredDeltaVelocity
 				index = i
@@ -433,13 +434,15 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 						// the sign of the change is negative if we're dealing with
 						// the second body in a contact.
 						var sign m.Real = 1.0
-						if b == 0 {
+						if b == 1 {
 							sign = -1.0
 						}
 
-						deltaVel = c2.contactToWorld.MulVector3(&deltaVel)
+            contactTranspose := c2.contactToWorld.Transpose()
+						deltaVel = contactTranspose.MulVector3(&deltaVel)
 						deltaVel.MulWith(sign)
 						c2.contactVelocity.Add(&deltaVel)
+            c2.calculateDesiredDeltaVelocity(duration)
 					}
 				} // d
 			} // b

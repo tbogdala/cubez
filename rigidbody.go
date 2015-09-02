@@ -5,7 +5,7 @@ package cubez
 
 import (
 	"math"
-
+"fmt"
 	m "github.com/tbogdala/cubez/math"
 )
 
@@ -217,22 +217,17 @@ func (body *RigidBody) Integrate(duration m.Real) {
 	body.ClearAccumulators()
 
 	// update the kinetic energy store and possibly put the body to sleep
-	/*
-		if body.CanSleep {
-			currentMotion := body.Velocity.Dot(&body.Velocity) + body.Rotation.Dot(&body.Rotation)
-			bias := m.Real(math.Pow(0.5, float64(duration)))
-			body.motion = bias*body.motion + (1.0-bias)*currentMotion
+	if body.CanSleep {
+		currentMotion := body.Velocity.Dot(&body.Velocity) + body.Rotation.Dot(&body.Rotation)
+		bias := m.Real(math.Pow(0.5, float64(duration)))
+		body.motion = bias*body.motion + (1.0-bias)*currentMotion
 
-			//		fmt.Printf("motion of %v; bias of %v; duration of %v; current motion %v\n", body.motion, bias, duration, currentMotion)
-			fmt.Printf("Velocity: %v ; Rotation %v ; motion %v : %v\n", body.Velocity, body.Rotation, body.motion, bias)
-			if body.motion < sleepEpsilon {
-				fmt.Printf("put asleep with a motion of %v\n", body.motion)
-				body.SetAwake(false)
-			} else if body.motion > 10*sleepEpsilon {
-				body.motion = 10 * sleepEpsilon
-			}
+		if body.motion < sleepEpsilon {
+			body.SetAwake(false)
+		} else if body.motion > 10*sleepEpsilon {
+			body.motion = 10 * sleepEpsilon
 		}
-	*/
+	}
 }
 
 // CalculateDerivedData internal data from public data members.

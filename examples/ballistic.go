@@ -49,7 +49,8 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 	groundPlane := cubez.NewCollisionPlane(m.Vector3{0.0, 1.0, 0.0}, 0.0)
 
 	// see if we have a collision with the ground
-	return cubeCollider.CheckAgainstHalfSpace(groundPlane, nil)
+	found, contacts := cubeCollider.CheckAgainstHalfSpace(groundPlane, nil)
+	return found, contacts
 }
 
 func updateCallback(delta float64) {
@@ -71,7 +72,6 @@ func renderCallback(delta float64) {
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
 	cube.Draw(projection, view)
-
 }
 
 func main() {
@@ -90,14 +90,14 @@ func main() {
 	}
 
 	// create a test cube to render
-	cube = CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
+	cube = CreateCube(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
 	cube.Shader = colorShader
 	cube.Color = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
 
 	// create the collision box for the the cube
-	cubeCollider = cubez.NewCollisionCube(nil, m.Vector3{0.5, 0.5, 0.5})
-	cubeCollider.Body.Position = m.Vector3{0.0, 4.0, 0.0}
-	cubeCollider.Body.SetMass(10.0)
+	cubeCollider = cubez.NewCollisionCube(nil, m.Vector3{1.0, 1.0, 1.0})
+	cubeCollider.Body.Position = m.Vector3{0.0, 10.0, 0.0}
+	cubeCollider.Body.SetMass(8.0)
 	cubeCollider.Body.CalculateDerivedData()
 	cubeCollider.CalculateDerivedData()
 
