@@ -17,6 +17,9 @@ var (
 	cube         *Renderable
 	cubeCollider *cubez.CollisionCube
 
+	bullet         *Renderable
+	bulletCollider *cubez.CollisionSphere
+
 	colorShader uint32
 )
 
@@ -26,20 +29,17 @@ func updateObjects(delta float64) {
 	cubeCollider.Body.Integrate(m.Real(delta))
 	cubeCollider.CalculateDerivedData()
 
-	// for now we hack in the position and rotation
-	// of the collider into the renderable
-	cube.Location = mgl.Vec3{
-		float32(cubeCollider.Body.Position[0]),
-		float32(cubeCollider.Body.Position[1]),
-		float32(cubeCollider.Body.Position[2]),
-	}
-	cube.LocalRotation = mgl.Quat{
-		float32(cubeCollider.Body.Orientation[0]),
-		mgl.Vec3{
-			float32(cubeCollider.Body.Orientation[1]),
-			float32(cubeCollider.Body.Orientation[2]),
-			float32(cubeCollider.Body.Orientation[3]),
-		},
+	// for now we hack in the position and rotation of the collider into the renderable
+	SetGlVector3(&cube.Location, &cubeCollider.Body.Position)
+	SetGlQuat(&cube.LocalRotation, &cubeCollider.Body.Orientation)
+
+	if bulletCollider != nil {
+		bulletCollider.Body.Integrate(m.Real(delta))
+		bulletCollider.CalculateDerivedData()
+		if bullet != nil {
+			SetGlVector3(&bullet.Location, &bulletCollider.Body.Position)
+			SetGlQuat(&bullet.LocalRotation, &bulletCollider.Body.Orientation)
+		}
 	}
 }
 
@@ -50,6 +50,15 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 
 	// see if we have a collision with the ground
 	found, contacts := cubeCollider.CheckAgainstHalfSpace(groundPlane, nil)
+
+	// run collision checks on bullets
+	if bulletCollider != nil {
+		f, c := bulletCollider.CheckAgainstHalfSpace(groundPlane, contacts)
+		f2, c2 := cubeCollider.CheckAgainstSphere(bulletCollider, c)
+		found = found || f || f2
+		contacts = c2
+	}
+
 	return found, contacts
 }
 
@@ -72,6 +81,9 @@ func renderCallback(delta float64) {
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
 	cube.Draw(projection, view)
+	if bullet != nil {
+		bullet.Draw(projection, view)
+	}
 }
 
 func main() {
@@ -102,15 +114,38 @@ func main() {
 	cubeCollider.CalculateDerivedData()
 
 	// setup the camera
-	app.CameraPos = mgl.Vec3{0.0, 0.0, 5.0}
+	app.CameraPos = mgl.Vec3{-3.0, 3.0, 15.0}
+	app.CameraRotation = mgl.QuatLookAtV(
+		mgl.Vec3{-3.0, 3.0, 15.0},
+		mgl.Vec3{0.0, 1.0, 0.0},
+		mgl.Vec3{0.0, 1.0, 0.0})
 
 	gl.Enable(gl.DEPTH_TEST)
 	app.RenderLoop()
+}
+
+func fire() {
+	// create a test sphere to render
+	bullet = CreateSphere(0.25, 16, 16)
+	bullet.Shader = colorShader
+	bullet.Color = mgl.Vec4{0.0, 0.0, 1.0, 1.0}
+
+	// create the collision box for the the bullet
+	bulletCollider = cubez.NewCollisionSphere(nil, 0.25)
+	bulletCollider.Body.Position = m.Vector3{0.75, 1.0, 10.0}
+	bulletCollider.Body.SetMass(1.0)
+	bulletCollider.Body.Velocity = m.Vector3{0.0, 0.0, -50.0}
+
+	bulletCollider.Body.CalculateDerivedData()
+	bulletCollider.CalculateDerivedData()
 }
 
 func keyCallback(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
 	// Key W == close app
 	if key == glfw.KeyEscape && action == glfw.Press {
 		w.SetShouldClose(true)
+	}
+	if key == glfw.KeySpace && action == glfw.Press {
+		fire()
 	}
 }

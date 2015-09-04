@@ -185,6 +185,22 @@ func (m *Matrix3x4) MulMatrix3x4(o *Matrix3x4) Matrix3x4 {
 	}
 }
 
+// TransformInverse transforms the vector by the transformational
+// inverse of this matrix.
+// NOTE: will not work on matrixes with scale or shears.
+func (m *Matrix3x4) TransformInverse(v *Vector3) Vector3 {
+	tmp := *v
+	tmp[0] -= m[9]
+	tmp[1] -= m[10]
+	tmp[2] -= m[11]
+
+	return Vector3{
+		tmp[0]*m[0] + tmp[1]*m[1] + tmp[2]*m[2],
+		tmp[0]*m[3] + tmp[1]*m[4] + tmp[2]*m[5],
+		tmp[0]*m[6] + tmp[1]*m[7] + tmp[2]*m[8],
+	}
+}
+
 func (m *Matrix3x4) GetAxis(colNumber int) Vector3 {
 	var i int
 	if colNumber > 3 {

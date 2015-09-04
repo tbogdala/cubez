@@ -6,12 +6,15 @@ package main
 import (
 	"errors"
 	"fmt"
-	gl "github.com/go-gl/gl/v3.3-core/gl"
-	glfw "github.com/go-gl/glfw/v3.1/glfw"
-	mgl "github.com/go-gl/mathgl/mgl32"
+	"math"
 	"runtime"
 	"strings"
 	"time"
+
+	gl "github.com/go-gl/gl/v3.3-core/gl"
+	glfw "github.com/go-gl/glfw/v3.1/glfw"
+	mgl "github.com/go-gl/mathgl/mgl32"
+	m "github.com/tbogdala/cubez/math"
 )
 
 var (
@@ -41,6 +44,21 @@ var (
 // GLFW event handling must run on the main OS thread
 func init() {
 	runtime.LockOSThread()
+}
+
+// SetGlVector3 copies the values from one math library vector to another.
+func SetGlVector3(dst *mgl.Vec3, src *m.Vector3) {
+	dst[0] = float32(src[0])
+	dst[1] = float32(src[1])
+	dst[2] = float32(src[2])
+}
+
+// SetGlQuat copies the values from one math library vector to another.
+func SetGlQuat(dst *mgl.Quat, src *m.Quat) {
+	dst.W = float32(src[0])
+	dst.V[0] = float32(src[1])
+	dst.V[1] = float32(src[2])
+	dst.V[2] = float32(src[3])
 }
 
 type RenderLoopCallback func(delta float64)
@@ -112,6 +130,8 @@ func (app *ExampleApp) InitGraphics(title string, w int, h int) {
 	// set the app window dimensions
 	app.Width = w
 	app.Height = h
+
+	gl.Enable(gl.CULL_FACE)
 }
 
 // Terminate closes the OpenGL window and unloads the graphics libraries.
@@ -415,6 +435,83 @@ func CreateCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
 	r := NewRenderable()
 	gl.GenVertexArrays(1, &r.Vao)
 	r.FaceCount = 12
+
+	const floatSize = 4
+	const uintSize = 4
+
+	// create a VBO to hold the vertex data
+	gl.GenBuffers(1, &r.VertVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.VertVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the uv data
+	gl.GenBuffers(1, &r.UvVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.UvVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(uvs), gl.Ptr(&uvs[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the normals data
+	gl.GenBuffers(1, &r.NormsVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.NormsVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	gl.GenBuffers(1, &r.ElementsVBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.ElementsVBO)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+
+	return r
+}
+
+// CreateSphere generates a 3d uv-sphere with the given radius and returns a Renderable.
+func CreateSphere(radius float32, rings int, sectors int) *Renderable {
+	// nothing to create
+	if rings < 2 || sectors < 2 {
+		return nil
+	}
+
+	const piDiv2 = math.Pi / 2.0
+
+	verts := make([]float32, 0, rings*sectors)
+	indexes := make([]uint32, 0, rings*sectors)
+	uvs := make([]float32, 0, rings*sectors)
+	normals := make([]float32, 0, rings*sectors)
+
+	R := float64(1.0 / float32(rings-1))
+	S := float64(1.0 / float32(sectors-1))
+
+	for ri := 0; ri < int(rings); ri++ {
+		for si := 0; si < int(sectors); si++ {
+			y := float32(math.Sin(-piDiv2 + math.Pi*float64(ri)*R))
+			x := float32(math.Cos(2.0*math.Pi*float64(si)*S) * math.Sin(math.Pi*float64(ri)*R))
+			z := float32(math.Sin(2.0*math.Pi*float64(si)*S) * math.Sin(math.Pi*float64(ri)*R))
+
+			uvs = append(uvs, float32(si)*float32(S))
+			uvs = append(uvs, float32(ri)*float32(R))
+
+			verts = append(verts, x*radius)
+			verts = append(verts, y*radius)
+			verts = append(verts, z*radius)
+
+			normals = append(normals, -x)
+			normals = append(normals, -y)
+			normals = append(normals, -z)
+
+			currentRow := ri * sectors
+			nextRow := (ri + 1) * sectors
+
+			indexes = append(indexes, uint32(currentRow+si))
+			indexes = append(indexes, uint32(nextRow+si))
+			indexes = append(indexes, uint32(nextRow+si+1))
+
+			indexes = append(indexes, uint32(currentRow+si))
+			indexes = append(indexes, uint32(nextRow+si+1))
+			indexes = append(indexes, uint32(currentRow+si+1))
+		}
+	}
+
+	r := NewRenderable()
+	gl.GenVertexArrays(1, &r.Vao)
+	r.FaceCount = rings * sectors * 2
 
 	const floatSize = 4
 	const uintSize = 4

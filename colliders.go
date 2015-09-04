@@ -176,7 +176,7 @@ func (cube *CollisionCube) CalculateDerivedData() {
 func (cube *CollisionCube) CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact) {
 	// check for an intersection -- if there is none, then we can return
 	if !intersectCubeAndHalfSpace(cube, plane) {
-		return false, nil
+		return false, existingContacts
 	}
 
 	// Now that we have an intersection, find the points of intersection. This can be
@@ -231,6 +231,65 @@ func (cube *CollisionCube) CheckAgainstHalfSpace(plane *CollisionPlane, existing
 	}
 
 	return contactDetected, contacts
+}
+
+// CheckAgainstSphere checks the cube against a sphere to see if there's a collision.
+func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
+	// transform the center of the sphere into cube coordinates
+	position := sphere.transform.GetAxis(3)
+	relCenter := cube.transform.TransformInverse(&position)
+
+	// check to see if we can exclude contact
+	if m.RealAbs(relCenter[0])-sphere.Radius > cube.HalfSize[0] ||
+		m.RealAbs(relCenter[1])-sphere.Radius > cube.HalfSize[1] ||
+		m.RealAbs(relCenter[2])-sphere.Radius > cube.HalfSize[2] {
+		return false, existingContacts
+	}
+
+	var closestPoint m.Vector3
+
+	// clamp the coordinates to the box
+	for i := 0; i < 3; i++ {
+		dist := relCenter[i]
+		if dist > cube.HalfSize[i] {
+			dist = cube.HalfSize[i]
+		} else if dist < -cube.HalfSize[i] {
+			dist = -cube.HalfSize[i]
+		}
+		closestPoint[i] = dist
+	}
+
+	// check to see if we're in contact
+	distCheck := closestPoint
+	distCheck.Sub(&relCenter)
+	dist := distCheck.Dot(&distCheck)
+	if dist > sphere.Radius*sphere.Radius {
+		return false, existingContacts
+	}
+
+	// transform the contact point
+	closestPointWorld := cube.transform.MulVector3(&closestPoint)
+
+	// we have contact
+	c := NewContact()
+	c.ContactPoint = closestPointWorld
+
+	closestPointWorld.Sub(&position)
+	c.ContactNormal = closestPointWorld
+	c.ContactNormal.Normalize()
+
+	c.Penetration = sphere.Radius - m.RealSqrt(dist)
+	c.Bodies[0] = cube.Body
+	c.Bodies[1] = sphere.Body
+
+	contacts := append(existingContacts, c)
+
+	// FIXME:
+	// TODO: c.Friction and c.Restitution set here are test constants
+	c.Friction = 0.9
+	c.Restitution = 0.1
+
+	return true, contacts
 }
 
 /*

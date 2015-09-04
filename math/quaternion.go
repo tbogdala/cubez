@@ -99,3 +99,97 @@ func (q *Quat) Normalize() {
 	q[2] *= invLength
 	q[3] *= invLength
 }
+
+// LookAt sets the quaternion to the orientation needed to look at a 'center' from
+// the 'eye' position with 'up' as a reference vector for the up direction.
+// Note: this was modified from the go-gl/mathgl library.
+func (q *Quat) LookAt(eye, center, up *Vector3) {
+	direction := center
+	direction.Sub(eye)
+	direction.Normalize()
+
+	// Find the rotation between the front of the object (that we assume towards Z-,
+	// but this depends on your model) and the desired direction
+	rotDir := QuatBetweenVectors(&Vector3{0, 0, -1}, direction)
+
+	// Recompute up so that it's perpendicular to the direction
+	// You can skip that part if you really want to force up
+	//right := direction.Cross(up)
+	//up = right.Cross(direction)
+
+	// Because of the 1rst rotation, the up is probably completely screwed up.
+	// Find the rotation between the "up" of the rotated object, and the desired up
+	upCur := rotDir.Rotate(&Vector3{0, 1, 0})
+	rotTarget := QuatBetweenVectors(&upCur, up)
+
+	rotTarget.Mul(&rotDir) // remember, in reverse order.
+	rotTarget.Inverse()    // camera rotation should be inversed!
+
+	q[0] = rotTarget[0]
+	q[1] = rotTarget[1]
+	q[2] = rotTarget[2]
+	q[3] = rotTarget[3]
+}
+
+// QuatBetweenVectors calculates the rotation between two vectors.
+// Note: this was modified from the go-gl/mathgl library.
+func QuatBetweenVectors(s, d *Vector3) Quat {
+	start := *s
+	dest := *d
+	start.Normalize()
+	dest.Normalize()
+
+	cosTheta := start.Dot(&dest)
+	if cosTheta < -1.0+Epsilon {
+		// special case when vectors in opposite directions:
+		// there is no "ideal" rotation axis
+		// So guess one; any will do as long as it's perpendicular to start
+		posX := Vector3{1.0, 0.0, 0.0}
+		axis := posX.Cross(&start)
+		if axis.Dot(&axis) < Epsilon {
+			// bad luck, they were parallel, try again!
+			posY := Vector3{0.0, 1.0, 0.0}
+			axis = posY.Cross(&start)
+		}
+
+		axis.Normalize()
+		return QuatFromAxis(math.Pi, axis[0], axis[1], axis[2])
+	}
+
+	axis := start.Cross(&dest)
+	ang := RealSqrt((1.0 + cosTheta) * 2.0)
+	axis.MulWith(1.0 / ang)
+
+	return Quat{
+		ang * 0.5,
+		axis[0], axis[1], axis[2],
+	}
+}
+
+// Inverse calculates the inverse of a quaternion. The inverse is equivalent
+// to the conjugate divided by the square of the length.
+//
+// This method computes the square norm by directly adding the sum
+// of the squares of all terms instead of actually squaring q1.Len(),
+// both for performance and percision.
+func (q *Quat) Inverse() {
+	c := q.Conjugated()
+	c.Scale(1.0 / q.Dot(q))
+	q[0] = c[0]
+	q[1] = c[1]
+	q[2] = c[2]
+	q[3] = c[3]
+}
+
+// Scale scales every element of the quaternion by some constant factor.
+func (q *Quat) Scale(c Real) {
+	q[0] *= c
+	q[1] *= c
+	q[2] *= c
+	q[3] *= c
+}
+
+// Dot calculates the dot product between two quaternions, equivalent to if this was a Vector4
+func (q *Quat) Dot(q2 *Quat) Real {
+	return q[0]*q2[0] + q[1]*q2[1] + q[2]*q2[2] + q[3]*q2[3]
+}

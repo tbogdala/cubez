@@ -86,3 +86,13 @@ func DegToRad(angle Real) Real {
 func RadToDeg(angle Real) Real {
 	return angle * 180.0 / math.Pi
 }
+
+// RealAbs is an absolute value wrapper for the Real type.
+func RealAbs(a Real) Real {
+	return Real(math.Abs(float64(a)))
+}
+
+// RealSqrt is a square root wrapper for the Real type.
+func RealSqrt(a Real) Real {
+	return Real(math.Sqrt(float64(a)))
+}
