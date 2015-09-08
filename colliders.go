@@ -292,6 +292,301 @@ func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingC
 	return true, contacts
 }
 
+// penetrationOnAxis checks if the two boxes overlap along a given axis and
+// returns the amount of overlap.
+func penetrationOnAxis(one *CollisionCube, two *CollisionCube, axis *m.Vector3, toCenter *m.Vector3) m.Real {
+	// project the half-size of one onto axis
+	oneProject := transformToAxis(one, axis)
+	twoProject := transformToAxis(two, axis)
+
+	// Project this onto the axis
+	distance := m.RealAbs(toCenter.Dot(axis))
+
+	// Return the overlap (i.e. positive indicates
+	// overlap, negative indicates separation).
+	return oneProject + twoProject - distance
+}
+
+func tryAxis(one *CollisionCube, two *CollisionCube, axis m.Vector3, toCenter *m.Vector3,
+	index int, smallestPenetration m.Real, smallestCase int) (bool, m.Real, int) {
+	// make sure we have a normalized axis, and don't check almost parallel axes
+	if axis.SquareMagnitude() < m.Epsilon {
+		return true, smallestPenetration, smallestCase
+	}
+
+	axis.Normalize()
+
+	penetration := penetrationOnAxis(one, two, &axis, toCenter)
+	if penetration < 0 {
+		return false, smallestPenetration, smallestCase
+	}
+
+	if penetration < smallestPenetration {
+		return true, penetration, index
+	}
+
+	return true, smallestPenetration, smallestCase
+}
+
+// fillPointFaceBoxBox is called when we know that a vertex from
+// box two is in contact with box one.
+func fillPointFaceBoxBox(one *CollisionCube, two *CollisionCube, toCenter *m.Vector3,
+	best int, pen m.Real, existingContacts []*Contact) []*Contact {
+	// We know which axis the collision is on (i.e. best),
+	// but we need to work out which of the two faces on this axis.
+	normal := one.transform.GetAxis(best)
+	if normal.Dot(toCenter) > 0 {
+		normal.MulWith(-1.0)
+	}
+
+	// Work out which vertex of box two we're colliding with.
+	v := two.HalfSize
+	if twoA0 := two.transform.GetAxis(0); twoA0.Dot(&normal) < 0 {
+		v[0] = -v[0]
+	}
+	if twoA1 := two.transform.GetAxis(1); twoA1.Dot(&normal) < 0 {
+		v[1] = -v[1]
+	}
+	if twoA2 := two.transform.GetAxis(2); twoA2.Dot(&normal) < 0 {
+		v[2] = -v[2]
+	}
+
+	c := NewContact()
+	c.ContactNormal = normal
+	c.ContactNormal.Normalize()
+	c.Penetration = pen
+	c.ContactPoint = two.transform.MulVector3(&v)
+	c.Bodies[0] = one.Body
+	c.Bodies[1] = two.Body
+
+	// FIXME:
+	// TODO: c.Friction and c.Restitution set here are test constants
+	c.Friction = 0.9
+	c.Restitution = 0.1
+
+	contacts := append(existingContacts, c)
+
+	return contacts
+}
+
+func contactPoint(pOne *m.Vector3, dOne *m.Vector3, oneSize m.Real,
+	pTwo *m.Vector3, dTwo *m.Vector3, twoSize m.Real, useOne bool) m.Vector3 {
+	// If useOne is true, and the contact point is outside
+	// the edge (in the case of an edge-face contact) then
+	// we use one's midpoint, otherwise we use two's.
+	//Vector3 toSt, cOne, cTwo;
+	//real dpStaOne, dpStaTwo, dpOneTwo, smOne, smTwo;
+	//real denom, mua, mub;
+
+	smOne := dOne.SquareMagnitude()
+	smTwo := dTwo.SquareMagnitude()
+	dpOneTwo := dTwo.Dot(dOne)
+
+	toSt := *pOne
+	toSt.Sub(pTwo)
+	dpStaOne := dOne.Dot(&toSt)
+	dpStaTwo := dTwo.Dot(&toSt)
+
+	denom := smOne*smTwo - dpOneTwo*dpOneTwo
+
+	// Zero denominator indicates parrallel lines
+	if m.RealAbs(denom) < m.Epsilon {
+		if useOne {
+			return *pOne
+		} else {
+			return *pTwo
+		}
+	}
+
+	mua := (dpOneTwo*dpStaTwo - smTwo*dpStaOne) / denom
+	mub := (smOne*dpStaTwo - dpOneTwo*dpStaOne) / denom
+
+	// If either of the edges has the nearest point out
+	// of bounds, then the edges aren't crossed, we have
+	// an edge-face contact. Our point is on the edge, which
+	// we know from the useOne parameter.
+	if mua > oneSize || mua < -oneSize || mub > twoSize || mub < -twoSize {
+		if useOne {
+			return *pOne
+		} else {
+			return *pTwo
+		}
+	} else {
+		cOne := *dOne
+		cOne.MulWith(mua)
+		cOne.Add(pOne)
+
+		cTwo := *dTwo
+		cTwo.MulWith(mub)
+		cTwo.Add(pTwo)
+
+		cOne.MulWith(0.5)
+		cTwo.MulWith(0.5)
+		cOne.Add(&cTwo)
+		return cOne
+	}
+}
+
+func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
+	// find the vector between two vectors
+	toCenter := cube.transform.GetAxis(3)
+	twoAxis3 := secondCube.transform.GetAxis(3)
+	toCenter.Sub(&twoAxis3)
+
+	var ret bool
+	pen := m.MaxValue
+	var best int = 0xffffff
+
+	// Now we check each axis, returning if it gives a separating axis.
+	// Keep track of the smallest penetration axis.
+	//#define CHECK_OVERLAP(axis, index) \
+	//    if (!tryAxis(one, two, (axis), toCentre, (index), pen, best)) return 0;
+	//CHECK_OVERLAP(one.getAxis(0), 0);
+	//CHECK_OVERLAP(one.getAxis(1), 1);
+	//CHECK_OVERLAP(one.getAxis(2), 2);
+	//CHECK_OVERLAP(two.getAxis(0), 3)
+	//CHECK_OVERLAP(two.getAxis(1), 4)
+	//CHECK_OVERLAP(two.getAxis(2), 5)
+
+	for i := 0; i < 2; i++ {
+		ret, pen, best = tryAxis(cube, secondCube, cube.transform.GetAxis(i), &toCenter, i, pen, best)
+		if ret == true {
+			return false, existingContacts
+		}
+	}
+	for i := 0; i < 2; i++ {
+		ret, pen, best = tryAxis(cube, secondCube, secondCube.transform.GetAxis(i), &toCenter, i+3, pen, best)
+		if ret == true {
+			return false, existingContacts
+		}
+	}
+
+	// Store the best axis-major, in case we run into almost parallel edge collisions later
+	bestSingleAxis := best
+
+	/*
+		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(0), 6);
+		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(1), 7);
+		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(2), 8);
+
+		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(0), 9);
+		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(1), 10);
+		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(2), 11);
+
+		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(0), 12);
+		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(1), 13);
+		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(2), 14);
+	*/
+
+	for i := 0; i < 2; i++ {
+		a1 := cube.transform.GetAxis(i)
+		a2 := secondCube.transform.GetAxis(0)
+		cross := a1.Cross(&a2)
+		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+6, pen, best)
+		if ret == true {
+			return false, existingContacts
+		}
+		a1 = cube.transform.GetAxis(i)
+		a2 = secondCube.transform.GetAxis(1)
+		cross = a1.Cross(&a2)
+		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+7, pen, best)
+		if ret == true {
+			return false, existingContacts
+		}
+		a1 = cube.transform.GetAxis(i)
+		a2 = secondCube.transform.GetAxis(2)
+		cross = a1.Cross(&a2)
+		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+8, pen, best)
+		if ret == true {
+			return false, existingContacts
+		}
+	}
+
+	// We now know there's a collision, and we know which of the axes gave
+	// the smallest penetration. We now can deal with it in different ways
+	// depending on the case.
+	if best < 3 {
+		// We've got a vertex of box two on a face of box one.
+		return true, fillPointFaceBoxBox(cube, secondCube, &toCenter, best, pen, existingContacts)
+	} else if best < 6 {
+		// We've got a vertex of box one on a face of box two.
+		// We use the same algorithm as above, but swap around
+		// one and two (and therefore also the vector between their
+		// centres).
+		newCenter := toCenter
+		newCenter.MulWith(-1.0)
+		return true, fillPointFaceBoxBox(secondCube, cube, &newCenter, best-3, pen, existingContacts)
+	} else {
+		// We've got an edge-edge contact. Find out which axes
+		best -= 6
+		oneAxisIndex := best / 3
+		twoAxisIndex := best % 3
+		oneAxis := cube.transform.GetAxis(oneAxisIndex)
+		twoAxis := secondCube.transform.GetAxis(twoAxisIndex)
+		axis := oneAxis.Cross(&twoAxis)
+		axis.Normalize()
+
+		// The axis should point from box one to box two.
+		if axis.Dot(&toCenter) > 0 {
+			axis.MulWith(-1.0)
+		}
+
+		// We have the axes, but not the edges: each axis has 4 edges parallel
+		// to it, we need to find which of the 4 for each object. We do
+		// that by finding the point in the centre of the edge. We know
+		// its component in the direction of the box's collision axis is zero
+		// (its a mid-point) and we determine which of the extremes in each
+		// of the other axes is closest.
+		ptOnOneEdge := cube.HalfSize
+		ptOnTwoEdge := secondCube.HalfSize
+		for i := 0; i < 3; i++ {
+			if i == oneAxisIndex {
+				ptOnOneEdge[i] = 0
+			} else if oneAxis := cube.transform.GetAxis(i); oneAxis.Dot(&axis) > 0 {
+				ptOnOneEdge[i] = -ptOnOneEdge[i]
+			}
+
+			if i == twoAxisIndex {
+				ptOnTwoEdge[i] = 0
+			} else if twoAxis := secondCube.transform.GetAxis(i); twoAxis.Dot(&axis) < 0 {
+				ptOnTwoEdge[i] = -ptOnTwoEdge[i]
+			}
+		}
+
+		// Move them into world coordinates (they are already oriented
+		// correctly, since they have been derived from the axes).
+		ptOnOneEdge = cube.transform.MulVector3(&ptOnOneEdge)
+		ptOnTwoEdge = secondCube.transform.MulVector3(&ptOnTwoEdge)
+
+		// So we have a point and a direction for the colliding edges.
+		// We need to find out point of closest approach of the two
+		// line-segments.
+		useOne := false
+		if bestSingleAxis > 2 {
+			useOne = true
+		}
+		contactVertex := contactPoint(&ptOnOneEdge, &oneAxis, cube.HalfSize[oneAxisIndex],
+			&ptOnTwoEdge, &twoAxis, secondCube.HalfSize[twoAxisIndex], useOne)
+
+		// finally ... create a new contact
+		c := NewContact()
+		c.ContactNormal = axis
+		c.Penetration = pen
+		c.ContactPoint = contactVertex
+		c.Bodies[0] = cube.Body
+		c.Bodies[1] = secondCube.Body
+
+		// FIXME:
+		// TODO: c.Friction and c.Restitution set here are test constants
+		c.Friction = 0.9
+		c.Restitution = 0.1
+
+		contacts := append(existingContacts, c)
+		return true, contacts
+	}
+	return false, existingContacts
+}
+
 /*
 ==================================================================================================
   UTILITY

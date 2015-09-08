@@ -52,6 +52,11 @@ func (v *Vector3) Magnitude() Real {
 	return Real(math.Sqrt(float64(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])))
 }
 
+// SquareMagnitude returns the magitude of the vector, squared.
+func (v *Vector3) SquareMagnitude() Real {
+	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
+}
+
 // MulWith multiplies a vector by a Real number.
 func (v *Vector3) MulWith(r Real) {
 	v[0] *= r
