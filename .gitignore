@@ -1,4 +1,4 @@
-compeditor
 *.exe
 *.dll
 examples/ballistic
+examples/cubedrop

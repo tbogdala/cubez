@@ -9,13 +9,14 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/cubez"
 	m "github.com/tbogdala/cubez/math"
+	"fmt"
+	"math"
 )
 
 var (
 	app *ExampleApp
 
-	cube         *Renderable
-	cubeCollider *cubez.CollisionCube
+	cube         *Entity
 
 	bullet         *Renderable
 	bulletCollider *cubez.CollisionSphere
@@ -26,12 +27,18 @@ var (
 // update object locations
 func updateObjects(delta float64) {
 	// for now there's only one box to update
-	cubeCollider.Body.Integrate(m.Real(delta))
-	cubeCollider.CalculateDerivedData()
+	body := cube.Collider.Body
+	body.Integrate(m.Real(delta))
+	cube.Collider.CalculateDerivedData()
+	fmt.Printf("body location: %v\n", body.Position)
+	fmt.Printf("\tbody transform 0: %f\n", body.GetTransform()[0])
+	if float64(body.GetTransform()[0]) == math.NaN() {
+		panic("what happened? (DEBUG)")
+	}
 
 	// for now we hack in the position and rotation of the collider into the renderable
-	SetGlVector3(&cube.Location, &cubeCollider.Body.Position)
-	SetGlQuat(&cube.LocalRotation, &cubeCollider.Body.Orientation)
+	SetGlVector3(&cube.Node.Location, &body.Position)
+	SetGlQuat(&cube.Node.LocalRotation, &body.Orientation)
 
 	if bulletCollider != nil {
 		bulletCollider.Body.Integrate(m.Real(delta))
@@ -49,12 +56,12 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 	groundPlane := cubez.NewCollisionPlane(m.Vector3{0.0, 1.0, 0.0}, 0.0)
 
 	// see if we have a collision with the ground
-	found, contacts := cubeCollider.CheckAgainstHalfSpace(groundPlane, nil)
+	found, contacts := cube.Collider.CheckAgainstHalfSpace(groundPlane, nil)
 
 	// run collision checks on bullets
 	if bulletCollider != nil {
 		f, c := bulletCollider.CheckAgainstHalfSpace(groundPlane, contacts)
-		f2, c2 := cubeCollider.CheckAgainstSphere(bulletCollider, c)
+		f2, c2 := cube.Collider.CheckAgainstSphere(bulletCollider, c)
 		found = found || f || f2
 		contacts = c2
 	}
@@ -80,7 +87,7 @@ func renderCallback(delta float64) {
 	view := app.CameraRotation.Mat4()
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
-	cube.Draw(projection, view)
+	cube.Node.Draw(projection, view)
 	if bullet != nil {
 		bullet.Draw(projection, view)
 	}
@@ -102,16 +109,21 @@ func main() {
 	}
 
 	// create a test cube to render
-	cube = CreateCube(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
-	cube.Shader = colorShader
-	cube.Color = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
+	cubeNode := CreateCube(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
+	cubeNode.Shader = colorShader
+	cubeNode.Color = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
 
 	// create the collision box for the the cube
-	cubeCollider = cubez.NewCollisionCube(nil, m.Vector3{1.0, 1.0, 1.0})
+	cubeCollider := cubez.NewCollisionCube(nil, m.Vector3{1.0, 1.0, 1.0})
 	cubeCollider.Body.Position = m.Vector3{0.0, 10.0, 0.0}
 	cubeCollider.Body.SetMass(8.0)
 	cubeCollider.Body.CalculateDerivedData()
 	cubeCollider.CalculateDerivedData()
+
+	// make the entity out of the renerable and collider
+	cube = new(Entity)
+	cube.Node = cubeNode
+	cube.Collider = cubeCollider
 
 	// setup the camera
 	app.CameraPos = mgl.Vec3{-3.0, 3.0, 15.0}

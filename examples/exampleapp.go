@@ -15,6 +15,8 @@ import (
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	m "github.com/tbogdala/cubez/math"
+	"github.com/tbogdala/cubez"
+	
 )
 
 var (
@@ -59,6 +61,11 @@ func SetGlQuat(dst *mgl.Quat, src *m.Quat) {
 	dst.V[0] = float32(src[1])
 	dst.V[1] = float32(src[2])
 	dst.V[2] = float32(src[3])
+}
+
+type Entity struct {
+	Node *Renderable
+	Collider *cubez.CollisionCube
 }
 
 type RenderLoopCallback func(delta float64)

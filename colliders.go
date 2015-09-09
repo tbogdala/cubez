@@ -5,9 +5,19 @@ package cubez
 
 import (
 	"math"
-
 	m "github.com/tbogdala/cubez/math"
 )
+
+// Collider is an interface for collision primitive objects to make calculating collisions
+// amongst a heterogenous set of objects easier.
+
+type Collider interface {
+	CalculateDerivedData()
+	GetBody() *RigidBody
+	CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact)
+	CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact)
+	CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact)
+}
 
 // CollisionPlane represents a plane in space for collisions but doesn't
 // have an associated rigid body and is considered to be infinite.
@@ -72,6 +82,10 @@ func NewCollisionPlane(n m.Vector3, o m.Real) *CollisionPlane {
 	return plane
 }
 
+// CalculateDerivedData currently doesn't do anything for planes.
+func (s *CollisionPlane) CalculateDerivedData() {
+}
+
 /*
 ==================================================================================================
   COLLISION SPHERE
@@ -95,6 +109,11 @@ func NewCollisionSphere(optBody *RigidBody, radius m.Real) *CollisionSphere {
 // GetTransform returns a copy of the transform matrix for the collider object.
 func (s *CollisionSphere) GetTransform() m.Matrix3x4 {
 	return s.transform
+}
+
+// GetBody returns the rigid body associated with the sphere.
+func (s *CollisionSphere) GetBody() *RigidBody {
+	return s.Body
 }
 
 // CalculateDerivedData internal data from public data members.
@@ -137,6 +156,18 @@ func (s *CollisionSphere) CheckAgainstHalfSpace(plane *CollisionPlane, existingC
 	return true, contacts
 }
 
+// CheckAgainstCube checks the sphere against collision with a cube.
+func (s *CollisionSphere) CheckAgainstCube(cube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
+	// FIXME: not implemented
+	return false, existingContacts
+}
+
+// CheckAgainstCube checks the sphere against collision with a sphere.
+func (s *CollisionSphere) CheckAgainstSphere(cube *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
+	// FIXME: not implemented
+	return false, existingContacts
+}
+
 /*
 ==================================================================================================
   COLLISION CUBE
@@ -160,6 +191,11 @@ func NewCollisionCube(optBody *RigidBody, halfSize m.Vector3) *CollisionCube {
 // GetTransform returns a copy of the transform matrix for the collider object.
 func (cube *CollisionCube) GetTransform() m.Matrix3x4 {
 	return cube.transform
+}
+
+// GetBody returns the rigid body associated with the cube.
+func (cube *CollisionCube) GetBody() *RigidBody {
+	return cube.Body
 }
 
 // CalculateDerivedData internal data from public data members.
@@ -353,7 +389,6 @@ func fillPointFaceBoxBox(one *CollisionCube, two *CollisionCube, toCenter *m.Vec
 
 	c := NewContact()
 	c.ContactNormal = normal
-	c.ContactNormal.Normalize()
 	c.Penetration = pen
 	c.ContactPoint = two.transform.MulVector3(&v)
 	c.Bodies[0] = one.Body
@@ -429,9 +464,9 @@ func contactPoint(pOne *m.Vector3, dOne *m.Vector3, oneSize m.Real,
 
 func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
 	// find the vector between two vectors
-	toCenter := cube.transform.GetAxis(3)
-	twoAxis3 := secondCube.transform.GetAxis(3)
-	toCenter.Sub(&twoAxis3)
+	toCenter := secondCube.transform.GetAxis(3)
+	oneAxis3 := cube.transform.GetAxis(3)
+	toCenter.Sub(&oneAxis3)
 
 	var ret bool
 	pen := m.MaxValue
@@ -439,24 +474,15 @@ func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingC
 
 	// Now we check each axis, returning if it gives a separating axis.
 	// Keep track of the smallest penetration axis.
-	//#define CHECK_OVERLAP(axis, index) \
-	//    if (!tryAxis(one, two, (axis), toCentre, (index), pen, best)) return 0;
-	//CHECK_OVERLAP(one.getAxis(0), 0);
-	//CHECK_OVERLAP(one.getAxis(1), 1);
-	//CHECK_OVERLAP(one.getAxis(2), 2);
-	//CHECK_OVERLAP(two.getAxis(0), 3)
-	//CHECK_OVERLAP(two.getAxis(1), 4)
-	//CHECK_OVERLAP(two.getAxis(2), 5)
-
-	for i := 0; i < 2; i++ {
+	for i := 0; i <= 2; i++ {
 		ret, pen, best = tryAxis(cube, secondCube, cube.transform.GetAxis(i), &toCenter, i, pen, best)
-		if ret == true {
+		if ret == false {
 			return false, existingContacts
 		}
 	}
-	for i := 0; i < 2; i++ {
+	for i := 0; i <= 2; i++ {
 		ret, pen, best = tryAxis(cube, secondCube, secondCube.transform.GetAxis(i), &toCenter, i+3, pen, best)
-		if ret == true {
+		if ret == false {
 			return false, existingContacts
 		}
 	}
@@ -464,40 +490,26 @@ func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingC
 	// Store the best axis-major, in case we run into almost parallel edge collisions later
 	bestSingleAxis := best
 
-	/*
-		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(0), 6);
-		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(1), 7);
-		CHECK_OVERLAP(one.getAxis(0) % two.getAxis(2), 8);
-
-		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(0), 9);
-		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(1), 10);
-		CHECK_OVERLAP(one.getAxis(1) % two.getAxis(2), 11);
-
-		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(0), 12);
-		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(1), 13);
-		CHECK_OVERLAP(one.getAxis(2) % two.getAxis(2), 14);
-	*/
-
-	for i := 0; i < 2; i++ {
+	for i := 0; i <= 2; i++ {
 		a1 := cube.transform.GetAxis(i)
 		a2 := secondCube.transform.GetAxis(0)
 		cross := a1.Cross(&a2)
 		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+6, pen, best)
-		if ret == true {
+		if ret == false {
 			return false, existingContacts
 		}
 		a1 = cube.transform.GetAxis(i)
 		a2 = secondCube.transform.GetAxis(1)
 		cross = a1.Cross(&a2)
 		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+7, pen, best)
-		if ret == true {
+		if ret == false {
 			return false, existingContacts
 		}
 		a1 = cube.transform.GetAxis(i)
 		a2 = secondCube.transform.GetAxis(2)
 		cross = a1.Cross(&a2)
 		ret, pen, best = tryAxis(cube, secondCube, cross, &toCenter, (i*3)+8, pen, best)
-		if ret == true {
+		if ret == false {
 			return false, existingContacts
 		}
 	}
@@ -592,6 +604,31 @@ func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingC
   UTILITY
 ==================================================================================================
 */
+
+// CheckForCollisions will check one collider primitive against another and update the contact slice
+// if there were any contacts (as well as returning a bool indicating if contacts were found).
+func CheckForCollisions(one Collider, two Collider, existingContacts []*Contact) (bool, []*Contact) {
+	switch two.(type) {
+	case *CollisionSphere:
+		otherSphere, ok := two.(*CollisionSphere)
+		if ok {
+    	return one.CheckAgainstSphere(otherSphere, existingContacts)
+		} else {
+			return false, existingContacts
+		}
+	case *CollisionCube:
+		otherCube, ok := two.(*CollisionCube)
+		if ok {
+    	return one.CheckAgainstCube(otherCube, existingContacts)
+		} else {
+			return false, existingContacts
+		}
+	}
+
+	// this is reached if we dont have a supported Check* function in the interface
+	// for the primitive type.
+	return false, existingContacts
+}
 
 // intersectCubeAndHalfSpace tests to see if a cube and plane intersect
 func intersectCubeAndHalfSpace(cube *CollisionCube, plane *CollisionPlane) bool {
