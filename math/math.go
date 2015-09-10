@@ -96,3 +96,8 @@ func RealAbs(a Real) Real {
 func RealSqrt(a Real) Real {
 	return Real(math.Sqrt(float64(a)))
 }
+
+// RealIsNaN returns true if the value is Not a Number.
+func RealIsNaN(a Real) bool {
+	return math.IsNaN(float64(a))
+}

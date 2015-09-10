@@ -203,8 +203,7 @@ func (cube *CollisionCube) GetBody() *RigidBody {
 // Constructs a transform matrix based on the RigidBody's transform and the
 // collision object's offset.
 func (cube *CollisionCube) CalculateDerivedData() {
-	transform := cube.Body.GetTransform()
-	cube.transform = transform.MulMatrix3x4(&cube.Offset)
+	cube.transform = cube.Body.transform.MulMatrix3x4(&cube.Offset)
 }
 
 // CheckAgainstHalfSpace does a collision test on a collision box and a plane representing
@@ -274,7 +273,6 @@ func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingC
 	// transform the center of the sphere into cube coordinates
 	position := sphere.transform.GetAxis(3)
 	relCenter := cube.transform.TransformInverse(&position)
-
 	// check to see if we can exclude contact
 	if m.RealAbs(relCenter[0])-sphere.Radius > cube.HalfSize[0] ||
 		m.RealAbs(relCenter[1])-sphere.Radius > cube.HalfSize[1] ||
@@ -298,7 +296,7 @@ func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingC
 	// check to see if we're in contact
 	distCheck := closestPoint
 	distCheck.Sub(&relCenter)
-	dist := distCheck.Dot(&distCheck)
+	dist := distCheck.SquareMagnitude()
 	if dist > sphere.Radius*sphere.Radius {
 		return false, existingContacts
 	}
@@ -309,12 +307,29 @@ func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingC
 	// we have contact
 	c := NewContact()
 	c.ContactPoint = closestPointWorld
-
-	closestPointWorld.Sub(&position)
 	c.ContactNormal = closestPointWorld
+	c.ContactNormal.Sub(&position)
+
+	// if the sphere is small enough, or the engine doesn't process fast enough,
+	// you can end up having a relCenter position that's the same as closestPoint --
+	// meaning that closestPoint didn't need to be clamped to cube bounds.
+	//
+	// since closestPoint is relCenter at this point, transforming it back to
+	// world coordinates makes it equal to the sphere position which will not
+	// be able to produce a contact normal.
+	if m.RealEqual(c.ContactNormal.Magnitude(), 0.0) {
+		// our hack for this is to simply use the sphere's velocity as the contact
+		// normal, which is probably not the correct thing to do, but looks okay.
+		c.ContactNormal = sphere.Body.Velocity
+	}
 	c.ContactNormal.Normalize()
 
-	c.Penetration = sphere.Radius - m.RealSqrt(dist)
+	c.Penetration = sphere.Radius
+	if !m.RealEqual(dist, 0.0) {
+	 c.Penetration -= m.RealSqrt(dist)
+ 	} else {
+		c.Penetration = 0.0
+	}
 	c.Bodies[0] = cube.Body
 	c.Bodies[1] = sphere.Body
 

@@ -5,7 +5,6 @@ package cubez
 
 import (
 	"math"
-
 	m "github.com/tbogdala/cubez/math"
 )
 

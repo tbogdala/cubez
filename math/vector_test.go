@@ -188,3 +188,23 @@ func TestVector4MulWith(t *testing.T) {
 		t.Errorf("MulWith isn't multiplying a vector properly: %v", v1)
 	}
 }
+
+/* ================================ HOW DOES GO WORK ============================================= */
+
+func TestVectorGoCopies(t *testing.T) {
+	var v1 Vector3 = Vector3{1.0, 2.5, 3.5}
+	var vArray [2]Vector3
+
+	// This test illustrates that Go makes a copy of the float array here and that subsequent
+	// operations on the new copy do not modify the original.
+	vArray[0] = v1
+	vArray[0].MulWith(2.0)
+
+	if !RealEqual(vArray[0][0], 2.0) || !RealEqual(vArray[0][1], 5.0) || !RealEqual(vArray[0][2], 7.0) {
+		t.Errorf("MulWith isn't multiplying a vector properly: %v", v1)
+	}
+
+	if !RealEqual(v1[0], 1.0) || !RealEqual(v1[1], 2.5) || !RealEqual(v1[2], 3.5) {
+		t.Errorf("The initial vector was modified in the multiplication after a copy: %v", v1)
+	}
+}

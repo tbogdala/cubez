@@ -66,10 +66,13 @@ func (v *Vector3) MulWith(r Real) {
 
 // Normalize sets the vector the normalized value.
 func (v *Vector3) Normalize() {
-	l := 1.0 / v.Magnitude()
-	v[0] *= l
-	v[1] *= l
-	v[2] *= l
+	m := v.Magnitude()
+	if !RealEqual(m, 0.0) {
+		l := 1.0 / m
+		v[0] *= l
+		v[1] *= l
+		v[2] *= l
+	}
 }
 
 // Set sets the vector equal to the values of the second vector.

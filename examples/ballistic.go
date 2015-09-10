@@ -9,8 +9,6 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/cubez"
 	m "github.com/tbogdala/cubez/math"
-	"fmt"
-	"math"
 )
 
 var (
@@ -30,11 +28,6 @@ func updateObjects(delta float64) {
 	body := cube.Collider.Body
 	body.Integrate(m.Real(delta))
 	cube.Collider.CalculateDerivedData()
-	fmt.Printf("body location: %v\n", body.Position)
-	fmt.Printf("\tbody transform 0: %f\n", body.GetTransform()[0])
-	if float64(body.GetTransform()[0]) == math.NaN() {
-		panic("what happened? (DEBUG)")
-	}
 
 	// for now we hack in the position and rotation of the collider into the renderable
 	SetGlVector3(&cube.Node.Location, &body.Position)
@@ -144,9 +137,10 @@ func fire() {
 
 	// create the collision box for the the bullet
 	bulletCollider = cubez.NewCollisionSphere(nil, 0.25)
-	bulletCollider.Body.Position = m.Vector3{0.75, 1.0, 10.0}
+	bulletCollider.Body.Position = m.Vector3{0.65, 1.0, 10.0}
 	bulletCollider.Body.SetMass(1.0)
-	bulletCollider.Body.Velocity = m.Vector3{0.0, 0.0, -50.0}
+	bulletCollider.Body.Velocity = m.Vector3{0.0, 0.0, -75.0}
+	bulletCollider.Body.Acceleration = m.Vector3{0.0, -10.0, 0.0}
 
 	bulletCollider.Body.CalculateDerivedData()
 	bulletCollider.CalculateDerivedData()
