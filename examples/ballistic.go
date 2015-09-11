@@ -14,9 +14,9 @@ import (
 var (
 	app *ExampleApp
 
-	cube         *Entity
+	cube *Entity
 
-	bullets	[]*Entity
+	bullets []*Entity
 
 	colorShader uint32
 )
@@ -32,7 +32,7 @@ func updateObjects(delta float64) {
 	SetGlVector3(&cube.Node.Location, &body.Position)
 	SetGlQuat(&cube.Node.LocalRotation, &body.Orientation)
 
-	for _, bullet := range(bullets) {
+	for _, bullet := range bullets {
 		bulletBody := bullet.Collider.GetBody()
 		bulletBody.Integrate(m.Real(delta))
 		bullet.Collider.CalculateDerivedData()
@@ -50,7 +50,7 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 	found, contacts := cube.Collider.CheckAgainstHalfSpace(groundPlane, nil)
 
 	// run collision checks on bullets
-	for _, bullet := range(bullets) {
+	for _, bullet := range bullets {
 		f, c := cubez.CheckForCollisions(bullet.Collider, groundPlane, contacts)
 		f2, c2 := cubez.CheckForCollisions(cube.Collider, bullet.Collider, c)
 		found = found || f || f2
@@ -80,7 +80,7 @@ func renderCallback(delta float64) {
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
 	cube.Node.Draw(projection, view)
-	for _, bullet := range(bullets) {
+	for _, bullet := range bullets {
 		bullet.Node.Draw(projection, view)
 	}
 	//time.Sleep(10 * time.Millisecond)
@@ -139,7 +139,7 @@ func main() {
 }
 
 func fire() {
-	var mass m.Real = 4.5
+	var mass m.Real = 8.5
 	var radius m.Real = 0.2
 
 	// create a test sphere to render
