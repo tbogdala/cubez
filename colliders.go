@@ -83,8 +83,37 @@ func NewCollisionPlane(n m.Vector3, o m.Real) *CollisionPlane {
 }
 
 // CalculateDerivedData currently doesn't do anything for planes.
-func (s *CollisionPlane) CalculateDerivedData() {
+func (p *CollisionPlane) CalculateDerivedData() {
 }
+
+// GetTransform returns an identity transform since the collision plane doesn't use transform matrixes.
+func (s *CollisionPlane) GetTransform() m.Matrix3x4 {
+	var m m.Matrix3x4
+	m.SetIdentity()
+	return m
+}
+
+// GetBody returns nil since the plane doesn't have a rigid body associated with it
+func (p *CollisionPlane) GetBody() *RigidBody {
+	return nil
+}
+
+func (p *CollisionPlane) CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact) {
+	// FIXME: implement
+	return false, existingContacts
+}
+
+func (p *CollisionPlane) CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
+	// FIXME: implement
+	return false, existingContacts
+}
+
+func (p *CollisionPlane) CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
+	// FIXME: implement
+	return false, existingContacts
+}
+
+
 
 /*
 ==================================================================================================
@@ -635,6 +664,13 @@ func CheckForCollisions(one Collider, two Collider, existingContacts []*Contact)
 		otherCube, ok := two.(*CollisionCube)
 		if ok {
     	return one.CheckAgainstCube(otherCube, existingContacts)
+		} else {
+			return false, existingContacts
+		}
+	case *CollisionPlane:
+		otherPlane, ok := two.(*CollisionPlane)
+		if ok {
+    	return one.CheckAgainstHalfSpace(otherPlane, existingContacts)
 		} else {
 			return false, existingContacts
 		}

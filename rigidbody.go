@@ -49,7 +49,7 @@ type RigidBody struct {
 	Rotation m.Vector3
 
 	// InverseInertiaTensor holds the inverse of the rigid body's inertia tensor.
-	// The inertia tnesor provided must not be degenerate (that would mean the
+	// The inertia tensor provided must not be degenerate (that would mean the
 	// body had zero inertia for spinning along one axis). As long as the tensor
 	// is finite, it will be invertible. The inverse tensor is used for similar
 	// reasons to the use of the inverse mass.
@@ -146,6 +146,12 @@ func (body *RigidBody) GetLastFrameAccelleration() m.Vector3 {
 // inertia tensor in World Space.
 func (body *RigidBody) GetInverseInertiaTensorWorld() m.Matrix3 {
 	return body.inverseInertiaTensorWorld
+}
+
+// SetInertiaTensor sets the InverseInertiaTensor member of the RigidBody
+// by calculating the inverse of the matrix supplied.
+func (body *RigidBody) SetInertiaTensor(m *m.Matrix3) {
+	body.InverseInertiaTensor = m.Invert()
 }
 
 // SetAwake sets the IsAwake property of the RigidBody.

@@ -16,7 +16,7 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	m "github.com/tbogdala/cubez/math"
 	"github.com/tbogdala/cubez"
-	
+
 )
 
 var (
@@ -65,7 +65,14 @@ func SetGlQuat(dst *mgl.Quat, src *m.Quat) {
 
 type Entity struct {
 	Node *Renderable
-	Collider *cubez.CollisionCube
+	Collider cubez.Collider
+}
+
+func NewEntity (node *Renderable, collider cubez.Collider) *Entity {
+	e := new(Entity)
+	e.Node = node
+	e.Collider = collider
+	return e
 }
 
 type RenderLoopCallback func(delta float64)

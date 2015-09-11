@@ -5,7 +5,6 @@ package cubez
 
 import (
 	m "github.com/tbogdala/cubez/math"
-	"math"
 )
 
 // a few internal epsilon values
@@ -104,7 +103,7 @@ func (c *Contact) calculateDesiredDeltaVelocity(duration m.Real) {
 
 	// if the velocity is very slow, limit the restitution
 	restitution := c.Restitution
-	if m.Real(math.Abs(float64(c.contactVelocity[0]))) < velocityLimit {
+	if m.RealAbs(c.contactVelocity[0]) < velocityLimit {
 		restitution = 0.0
 	}
 
@@ -120,15 +119,13 @@ func (c *Contact) calculateContactBasis() {
 	var contactTangentY m.Vector3
 	var contactTangentZ m.Vector3
 
-	absContactNormalX := m.Real(math.Abs(float64(c.ContactNormal[0])))
-	absContactNormalY := m.Real(math.Abs(float64(c.ContactNormal[1])))
+	absContactNormalX := m.RealAbs(c.ContactNormal[0])
+	absContactNormalY := m.RealAbs(c.ContactNormal[1])
 
 	// check whether the z axis is nearer to the x or y axis
 	if absContactNormalX > absContactNormalY {
 		// generate a scaling factor to ensure results are normalized
-		s := m.Real(1.0) / m.Real(math.Sqrt(float64(
-			c.ContactNormal[2]*c.ContactNormal[2]+
-				c.ContactNormal[0]*c.ContactNormal[0])))
+		s := m.Real(1.0) / m.RealSqrt(c.ContactNormal[2]*c.ContactNormal[2]+c.ContactNormal[0]*c.ContactNormal[0])
 
 		// the new x axis is at right angles to the world y axis
 		contactTangentY[0] = c.ContactNormal[2] * s
@@ -141,9 +138,7 @@ func (c *Contact) calculateContactBasis() {
 		contactTangentZ[2] = -c.ContactNormal[1] * contactTangentY[0]
 	} else {
 		// generate a scaling factor to ensure results are normalized
-		s := m.Real(1.0) / m.Real(math.Sqrt(float64(
-			c.ContactNormal[2]*c.ContactNormal[2]+
-				c.ContactNormal[1]*c.ContactNormal[1])))
+		s := m.Real(1.0) / m.RealSqrt(c.ContactNormal[2]*c.ContactNormal[2]+c.ContactNormal[1]*c.ContactNormal[1])
 
 		// the new x axis is at right angles to the world y axis
 		contactTangentY[0] = 0
@@ -169,13 +164,12 @@ func (c *Contact) calculateLocalVelocity(bodyIndex int, duration m.Real) m.Vecto
 	velocity.Add(&body.Velocity)
 
 	// turn the velocity into contact coordinates
-	contactTranspose := c.contactToWorld.Transpose()
-	contactVelocity := contactTranspose.MulVector3(&velocity)
+	contactVelocity := c.contactToWorld.TransformTranspose(&velocity)
 
 	// calculate the amount of velocity that is due to forces without reactions
 	accVelocity := body.GetLastFrameAccelleration()
 	accVelocity.MulWith(duration)
-	accVelocity = contactTranspose.MulVector3(&accVelocity)
+	accVelocity = c.contactToWorld.TransformTranspose(&accVelocity)
 
 	// we ignore any component of acceleration in the contact normal direction
 	accVelocity[0] = 0.0
@@ -438,10 +432,9 @@ func adjustVelocities(maxIterations int, contacts []*Contact, duration m.Real) {
 							sign = -1.0
 						}
 
-						contactTranspose := c2.contactToWorld.Transpose()
-						deltaVel = contactTranspose.MulVector3(&deltaVel)
-						deltaVel.MulWith(sign)
-						c2.contactVelocity.Add(&deltaVel)
+						tmpContactVelocity := c2.contactToWorld.TransformTranspose(&deltaVel)
+						tmpContactVelocity.MulWith(sign)
+						c2.contactVelocity.Add(&tmpContactVelocity)
 						c2.calculateDesiredDeltaVelocity(duration)
 					}
 				} // d
@@ -595,9 +588,7 @@ func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (
 	impulseContact = impulseMatrix.MulVector3(&velKill)
 
 	// check for exceeding friction
-	planarImpulse := m.Real(math.Sqrt(float64(
-		impulseContact[1]*impulseContact[1] +
-			impulseContact[2]*impulseContact[2])))
+	planarImpulse := m.RealSqrt(impulseContact[1]*impulseContact[1] +	impulseContact[2]*impulseContact[2])
 	if planarImpulse > impulseContact[0]*c.Friction {
 		// we need to use dynamic friction
 		impulseContact[1] /= planarImpulse

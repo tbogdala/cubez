@@ -3,10 +3,6 @@
 
 package math
 
-import (
-	"math"
-)
-
 // Add adds a vector to another vector.
 func (v *Vector3) Add(v2 *Vector3) {
 	v[0] += v2[0]
@@ -49,7 +45,7 @@ func (v *Vector3) Dot(v2 *Vector3) Real {
 
 // Magnitude returns the magnitude of the vector.
 func (v *Vector3) Magnitude() Real {
-	return Real(math.Sqrt(float64(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])))
+	return RealSqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
 }
 
 // SquareMagnitude returns the magitude of the vector, squared.

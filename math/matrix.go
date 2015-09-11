@@ -55,6 +55,27 @@ func (m *Matrix3) SetComponents(v1 *Vector3, v2 *Vector3, v3 *Vector3) {
 	m[2], m[5], m[8] = v1[2], v2[2], v3[2]
 }
 
+// SetInertiaTensorCoeffs sets the value of the matrix from inertia tensor values.
+func (m *Matrix3) SetInertiaTensorCoeffs(ix, iy, iz, ixy, ixz, iyz Real) {
+	m[0], m[3], m[6] = ix, -ixy, -ixz
+	m[1], m[4], m[7] = -ixy, iy, -iyz
+	m[2], m[5], m[8] = -ixz, -iyz, iz
+}
+
+// SetBlockInertiaTensor sets the value of the matrix as an inertia tensor
+// of a rectangular block aligned with the body's coordinate system with the
+// given axis half sizes and mass.
+func (m *Matrix3) SetBlockInertiaTensor(halfSize *Vector3, mass Real) {
+	squares := *halfSize
+	squares.ComponentProduct(halfSize)
+	m.SetInertiaTensorCoeffs(
+		0.3 * mass * (squares[1]+squares[2]),
+		0.3 * mass * (squares[0]+squares[2]),
+		0.3 * mass * (squares[0]+squares[1]),
+		0.0, 0.0, 0.0,
+	)
+}
+
 // MulVector3 multiplies a 3x3 matrix by a vector.
 func (m *Matrix3) MulVector3(v *Vector3) Vector3 {
 	return Vector3{
@@ -130,6 +151,18 @@ func (m *Matrix3) Invert() Matrix3 {
 	retMat.MulWith(1 / det)
 	return retMat
 }
+
+// TransformTranspose transforms the given vector by the transpose
+// of this matrix
+func (m *Matrix3) TransformTranspose(v *Vector3) Vector3 {
+	return Vector3{
+		v[0]*m[0] + v[1]*m[1] + v[2]*m[2],
+		v[0]*m[3] + v[1]*m[4] + v[2]*m[5],
+		v[0]*m[6] + v[1]*m[7] + v[2]*m[8],
+	}
+}
+
+
 
 // SetAsTransform sets the 3x4 matrix to be a transform matrix based
 // on the position and orientation passed in.

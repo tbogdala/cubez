@@ -97,6 +97,16 @@ func RealSqrt(a Real) Real {
 	return Real(math.Sqrt(float64(a)))
 }
 
+// RealSin is a sin function wrapper for the Real type.
+func RealSin(a Real) Real {
+	return Real(math.Sin(float64(a)))
+}
+
+// RealCos is a cos function wrapper for the Real type.
+func RealCos(a Real) Real {
+	return Real(math.Cos(float64(a)))
+}
+
 // RealIsNaN returns true if the value is Not a Number.
 func RealIsNaN(a Real) bool {
 	return math.IsNaN(float64(a))

@@ -3,14 +3,12 @@
 
 package math
 
-import (
-	"math"
-)
+import "math"
 
 // QuatFromAxis creates an quaternion from an axis and an angle.
 func QuatFromAxis(angle, x, y, z Real) Quat {
-	s := Real(math.Sin(float64(angle / 2.0)))
-	c := Real(math.Cos(float64(angle / 2.0)))
+	s := RealSin(angle / 2.0)
+	c := RealCos(angle / 2.0)
 
 	result := Quat{c, x * s, y * s, z * s}
 	result.Normalize()
@@ -41,7 +39,7 @@ func (q *Quat) SetIdentity() {
 
 // Len returns the length of the quaternion.
 func (q *Quat) Len() Real {
-	return Real(math.Sqrt(float64(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3])))
+	return RealSqrt(q[0]*q[0] + q[1]*q[1] + q[2]*q[2] + q[3]*q[3])
 }
 
 // Mul multiplies the quaternion by another quaternion.
