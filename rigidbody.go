@@ -118,6 +118,22 @@ func (body *RigidBody) SetMass(mass m.Real) {
 	body.inverseMass = 1.0 / mass
 }
 
+// SetInfiniteMass sets the mass of the RigidBody object to be 'infinite' ... which
+// actually just sets the inverse mass to 0.0.
+func (body *RigidBody) SetInfiniteMass() {
+	body.mass = 0.0
+	body.inverseMass = 0.0
+}
+
+// HasFiniteMass returns true if the RigidBody has a finite mass (not infinite).
+func (body *RigidBody) HasFiniteMass() bool {
+	if body.inverseMass > 0.0 {
+		return true
+	}
+	return false
+}
+
+
 // GetMass gets the mass of the RigidBody object.
 func (body *RigidBody) GetMass() m.Real {
 	if body.inverseMass == 0.0 {

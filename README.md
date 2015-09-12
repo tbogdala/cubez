@@ -36,6 +36,8 @@ Cubez is known to work on the following:
 At present, I suspect it should work on any Windows or Linux 64-bit system for which
 there is an acceptable Go x64 and gcc x64 compiler set available.
 
+Support for 32-bit systems is untested.
+
 Dependencies
 ------------
 
@@ -86,6 +88,7 @@ Known Limitations
 * slim down the public interface to the library to only export what's needed
 * introduce a way to set the restitution and friction for contacts
 * finish up the collision tests for existing primitives
+
 
 Roadmap
 -------

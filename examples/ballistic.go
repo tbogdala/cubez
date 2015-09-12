@@ -15,7 +15,7 @@ var (
 	app *ExampleApp
 
 	cube *Entity
-
+	backboard *Entity
 	bullets []*Entity
 
 	colorShader uint32
@@ -45,22 +45,47 @@ func updateObjects(delta float64) {
 
 // see if any of the rigid bodys contact
 func generateContacts(delta float64) (bool, []*cubez.Contact) {
+	var returnFound bool
+
 	// create the ground plane
 	groundPlane := cubez.NewCollisionPlane(m.Vector3{0.0, 1.0, 0.0}, 0.0)
 
 	// see if we have a collision with the ground
-	found, contacts := cube.Collider.CheckAgainstHalfSpace(groundPlane, nil)
+	found, contacts := cubez.CheckForCollisions(cube.Collider, groundPlane, nil)
+	if found {
+		returnFound = true
+	}
+	// see if there's a collision against the backboard
+	found, contacts = cubez.CheckForCollisions(cube.Collider, backboard.Collider, contacts)
+	if found {
+		returnFound = true
+	}
 
 	// run collision checks on bullets
 	for _, bullet := range bullets {
-		f, c := cubez.CheckForCollisions(bullet.Collider, groundPlane, contacts)
-		f2, c2 := cubez.CheckForCollisions(cube.Collider, bullet.Collider, c)
-		found = found || f || f2
-		contacts = c2
+		// check against the ground
+		found, contacts = cubez.CheckForCollisions(bullet.Collider, groundPlane, contacts)
+		if found {
+			returnFound = true
+		}
+
+		// check against the cube
+		found, contacts = cubez.CheckForCollisions(cube.Collider, bullet.Collider, contacts)
+		if found {
+			returnFound = true
+		}
+
+		// check against the backboard
+		found, contacts = cubez.CheckForCollisions(backboard.Collider, bullet.Collider, contacts)
+		if found {
+			returnFound = true
+		}
+
+
 		// FIXME: not checked against other bullets
 	}
 
-	return found, contacts
+	return returnFound, contacts
 }
 
 func updateCallback(delta float64) {
@@ -88,6 +113,9 @@ func renderCallback(delta float64) {
 	for _, bullet := range bullets {
 		bullet.Node.Draw(projection, view)
 	}
+
+	// draw the backboard
+	backboard.Node.Draw(projection, view)
 
 	// draw the ground
 	ground.Draw(projection, view)
@@ -125,24 +153,34 @@ func main() {
 
 	// create the collision box for the the cube
 	var cubeMass m.Real = 8.0
+	var cubeInertia m.Matrix3
 	cubeCollider := cubez.NewCollisionCube(nil, m.Vector3{1.0, 1.0, 1.0})
 	cubeCollider.Body.Position = m.Vector3{0.0, 5.0, 0.0}
 	cubeCollider.Body.SetMass(cubeMass)
-
-	var cubeInertia m.Matrix3
 	cubeInertia.SetBlockInertiaTensor(&cubeCollider.HalfSize, cubeMass)
 	cubeCollider.Body.SetInertiaTensor(&cubeInertia)
-
 	cubeCollider.Body.CalculateDerivedData()
 	cubeCollider.CalculateDerivedData()
 
 	// make the entity out of the renerable and collider
-	cube = new(Entity)
-	cube.Node = cubeNode
-	cube.Collider = cubeCollider
+	cube = NewEntity(cubeNode, cubeCollider)
 
 	// make a slice of entities for bullets
 	bullets = make([]*Entity, 0, 16)
+
+	// make the backboard to bound the bullets off of
+	backboardNode := CreateCube(-0.5, -2.0, -0.25, 0.5, 2.0, 0.25)
+	backboardNode.Shader = colorShader
+	backboardNode.Color = mgl.Vec4{0.25, 0.2, 0.2, 1.0}
+	backboardCollider := cubez.NewCollisionCube(nil, m.Vector3{0.5, 2.0, 0.25})
+	backboardCollider.Body.Position = m.Vector3{0.0, 2.0, -10.0}
+	backboardCollider.Body.SetInfiniteMass()
+	backboardCollider.Body.CalculateDerivedData()
+	backboardCollider.CalculateDerivedData()
+	SetGlVector3(&backboardNode.Location, &backboardCollider.Body.Position)
+
+	// make the backboard entity
+	backboard = NewEntity(backboardNode, backboardCollider)
 
 	// setup the camera
 	app.CameraPos = mgl.Vec3{-3.0, 3.0, 15.0}
