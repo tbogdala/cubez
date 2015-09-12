@@ -682,9 +682,9 @@ func CreateSphere(radius float32, rings int, sectors int) *Renderable {
 			verts = append(verts, y*radius)
 			verts = append(verts, z*radius)
 
-			normals = append(normals, -x)
-			normals = append(normals, -y)
-			normals = append(normals, -z)
+			normals = append(normals, x)
+			normals = append(normals, y)
+			normals = append(normals, z)
 
 			currentRow := ri * sectors
 			nextRow := (ri + 1) * sectors
