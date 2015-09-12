@@ -19,6 +19,8 @@ var (
 	bullets []*Entity
 
 	colorShader uint32
+	groundPlane *cubez.CollisionPlane
+	ground 	*Renderable
 )
 
 // update object locations
@@ -71,7 +73,7 @@ func updateCallback(delta float64) {
 
 func renderCallback(delta float64) {
 	gl.Viewport(0, 0, int32(app.Width), int32(app.Height))
-	gl.ClearColor(0.05, 0.05, 0.05, 1.0)
+	gl.ClearColor(0.196078, 0.6, 0.8, 1.0) // some pov-ray sky blue
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	// make the projection and view matrixes
@@ -79,10 +81,17 @@ func renderCallback(delta float64) {
 	view := app.CameraRotation.Mat4()
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
+	// draw the cube
 	cube.Node.Draw(projection, view)
+
+	// draw all of the bullets
 	for _, bullet := range bullets {
 		bullet.Node.Draw(projection, view)
 	}
+
+	// draw the ground
+	ground.Draw(projection, view)
+
 	//time.Sleep(10 * time.Millisecond)
 }
 
@@ -96,10 +105,18 @@ func main() {
 
 	// compile the shaders
 	var err error
-	colorShader, err = LoadShaderProgram(UnlitColorVertShader, UnlitColorFragShader)
+	colorShader, err = LoadShaderProgram(DiffuseColorVertShader, DiffuseColorFragShader)
 	if err != nil {
-		panic("Failed to compile the vertex shader! " + err.Error())
+		panic("Failed to compile the shader! " + err.Error())
 	}
+
+	// create the ground plane
+	groundPlane = cubez.NewCollisionPlane(m.Vector3{0.0, 1.0, 0.0}, 0.0)
+
+	// make a ground plane to draw
+	ground = CreatePlaneXZ(-500.0, 500.0, 500.0, -500.0, 1.0)
+	ground.Shader = colorShader
+	ground.Color = mgl.Vec4{0.6, 0.6, 0.6, 1.0}
 
 	// create a test cube to render
 	cubeNode := CreateCube(-1.0, -1.0, -1.0, 1.0, 1.0, 1.0)
@@ -109,7 +126,7 @@ func main() {
 	// create the collision box for the the cube
 	var cubeMass m.Real = 8.0
 	cubeCollider := cubez.NewCollisionCube(nil, m.Vector3{1.0, 1.0, 1.0})
-	cubeCollider.Body.Position = m.Vector3{0.0, 10.0, 0.0}
+	cubeCollider.Body.Position = m.Vector3{0.0, 5.0, 0.0}
 	cubeCollider.Body.SetMass(cubeMass)
 
 	var cubeInertia m.Matrix3
@@ -139,13 +156,13 @@ func main() {
 }
 
 func fire() {
-	var mass m.Real = 8.5
+	var mass m.Real = 1.5
 	var radius m.Real = 0.2
 
 	// create a test sphere to render
 	bullet := CreateSphere(float32(radius), 16, 16)
 	bullet.Shader = colorShader
-	bullet.Color = mgl.Vec4{0.0, 0.0, 1.0, 1.0}
+	bullet.Color = mgl.Vec4{0.2, 0.2, 1.0, 1.0}
 
 	// create the collision box for the the bullet
 	bulletCollider := cubez.NewCollisionSphere(nil, radius)
@@ -157,7 +174,7 @@ func fire() {
 	bulletCollider.GetBody().SetInertiaTensor(&cubeInertia)
 
 	bulletCollider.Body.SetMass(mass)
-	bulletCollider.Body.Velocity = m.Vector3{0.0, 0.0, -30.0}
+	bulletCollider.Body.Velocity = m.Vector3{0.0, 0.0, -40.0}
 	bulletCollider.Body.Acceleration = m.Vector3{0.0, -2.5, 0.0}
 
 	bulletCollider.Body.CalculateDerivedData()

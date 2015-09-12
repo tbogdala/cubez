@@ -11,12 +11,18 @@ import (
 	m "github.com/tbogdala/cubez/math"
 )
 
-var (
-	colorShader uint32
+const (
+	grassTexturePath = "assets/grass_0_0.png"
+	crateTexturePath = "assets/crate1_diffuse.png"
+)
 
+var (
+	diffuseShader uint32
 	app         *ExampleApp
 	cubes       []*Entity
 	groundPlane *cubez.CollisionPlane
+	ground 	*Renderable
+	crateTexture uint32
 )
 
 // update object locations
@@ -70,7 +76,7 @@ func updateCallback(delta float64) {
 
 func renderCallback(delta float64) {
 	gl.Viewport(0, 0, int32(app.Width), int32(app.Height))
-	gl.ClearColor(0.05, 0.05, 0.05, 1.0)
+	gl.ClearColor(0.196078, 0.6, 0.8, 1.0) // some pov-ray sky blue
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	// make the projection and view matrixes
@@ -78,14 +84,18 @@ func renderCallback(delta float64) {
 	view := app.CameraRotation.Mat4()
 	view = view.Mul4(mgl.Translate3D(-app.CameraPos[0], -app.CameraPos[1], -app.CameraPos[2]))
 
+	// draw all of the cubes
 	for _, cube := range cubes {
 		cube.Node.Draw(projection, view)
 	}
+
+	// draw the ground
+	ground.Draw(projection, view)
 }
 
 func main() {
 	app = NewApp()
-	app.InitGraphics("Ballistic", 800, 600)
+	app.InitGraphics("Cube Drop", 800, 600)
 	app.SetKeyCallback(keyCallback)
 	app.OnRender = renderCallback
 	app.OnUpdate = updateCallback
@@ -93,19 +103,37 @@ func main() {
 
 	// compile the shaders
 	var err error
-	colorShader, err = LoadShaderProgram(UnlitColorVertShader, UnlitColorFragShader)
+	diffuseShader, err = LoadShaderProgram(DiffuseTextureVertShader, DiffuseTextureFragShader)
 	if err != nil {
-		panic("Failed to compile the vertex shader! " + err.Error())
+		panic("Failed to compile the diffuse shader! " + err.Error())
 	}
 
 	// setup the slice of cubes to render
 	cubes = make([]*Entity, 0, 128)
 
+	// load the grass texture for the ground
+	grassTex, err := LoadImageToTexture(grassTexturePath)
+	if err != nil {
+		panic("Failed to load the grass texture! " + err.Error())
+	}
+
+	// load the crate texture for the cubes
+	crateTexture, err = LoadImageToTexture(crateTexturePath)
+	if err != nil {
+		panic("Failed to load the crate texture! " + err.Error())
+	}
+
 	// create the ground plane
 	groundPlane = cubez.NewCollisionPlane(m.Vector3{0.0, 1.0, 0.0}, 0.0)
 
+	// make a ground plane to draw
+	ground = CreatePlaneXZ(-500.0, 500.0, 500.0, -500.0, 64.0)
+	ground.Shader = diffuseShader
+	ground.Color = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+	ground.Tex0 = grassTex
+
 	// setup the camera
-	app.CameraPos = mgl.Vec3{0.0, 5.0, 10.0}
+	app.CameraPos = mgl.Vec3{0.0, 3.0, 10.0}
 	app.CameraRotation = mgl.QuatLookAtV(
 		mgl.Vec3{0.0, 5.0, 10.0},
 		mgl.Vec3{0.0, 0.0, 0.0},
@@ -125,13 +153,14 @@ func fire() {
 	for i := 0; i < cubesToMake; i++ {
 		e := new(Entity)
 		e.Node = CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
-		e.Node.Shader = colorShader
-		e.Node.Color = mgl.Vec4{1.0, 0.0, 0.0, 1.0}
-		e.Node.Location = mgl.Vec3{float32(i*2.0) + offset, 10.0, 0.0}
+		e.Node.Shader = diffuseShader
+		e.Node.Color = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
+		e.Node.Location = mgl.Vec3{float32(i*2.0 - cubesToMake/2) - 0.5 + offset, 10.0, 0.0}
+		e.Node.Tex0 = crateTexture
 
 		// create the collision box for the the cube
 		cubeCollider := cubez.NewCollisionCube(nil, m.Vector3{0.5, 0.5, 0.5})
-		cubeCollider.Body.Position = m.Vector3{m.Real(i*2.0) + m.Real(offset), 10.0, 0.0}
+		cubeCollider.Body.Position = m.Vector3{m.Real(i*2.0 - cubesToMake/2) - 0.5 + m.Real(offset), 10.0, 0.0}
 		cubeCollider.Body.SetMass(8.0)
 		cubeCollider.Body.CanSleep = true
 

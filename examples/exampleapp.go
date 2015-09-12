@@ -16,20 +16,23 @@ import (
 	mgl "github.com/go-gl/mathgl/mgl32"
 	m "github.com/tbogdala/cubez/math"
 	"github.com/tbogdala/cubez"
-
+	"image"
+	"image/draw"
+	"image/png"
+	"os"
 )
 
 var (
 	// UnlitColorVertShader is a basic color vertex shader
 	UnlitColorVertShader = `#version 330
 	uniform mat4 MVP_MATRIX;
-	uniform vec4 DIFFUSE_COLOR;
+	uniform vec4 MATERIAL_DIFFUSE;
   in vec3 VERTEX_POSITION;
 	out vec4 vs_diffuse;
 
   void main()
   {
-		vs_diffuse = DIFFUSE_COLOR;
+		vs_diffuse = MATERIAL_DIFFUSE;
 		gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
   }`
 
@@ -41,6 +44,97 @@ var (
   {
     colourOut = vs_diffuse;
   }`
+
+	DiffuseColorVertShader = `#version 330
+	precision highp float;
+
+	uniform mat4 MVP_MATRIX;
+	uniform mat4 MV_MATRIX;
+	in vec3 VERTEX_POSITION;
+	in vec3 VERTEX_NORMAL;
+
+	out vec3 vs_position;
+	out vec3 vs_eye_normal;
+
+	void main()
+	{
+	  vs_position = VERTEX_POSITION;
+	  vs_eye_normal = normalize(mat3(MV_MATRIX) * VERTEX_NORMAL);
+	  gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
+	}`
+
+	DiffuseColorFragShader = `#version 330
+	precision highp float;
+
+	uniform mat4 MV_MATRIX;
+	uniform mat4 MVP_MATRIX;
+	uniform vec4 MATERIAL_DIFFUSE;
+
+	in vec3 vs_position;
+	in vec3 vs_eye_normal;
+
+	out vec4 frag_color;
+
+	void main()
+	{
+		vec4 LIGHT_POSITION = vec4(-100.0, 100.0, 100.0, 1.0);
+		vec4 LIGHT_DIFFUSE = vec4(1.0);
+
+		vec4 eye_vertex = MV_MATRIX * vec4(vs_position, 1.0);
+		vec3 s = normalize(vec3(LIGHT_POSITION-eye_vertex));
+		float diffuseIntensity = max(dot(s,vs_eye_normal), 0.0);
+
+
+	  frag_color = MATERIAL_DIFFUSE * diffuseIntensity;
+	}`
+
+	DiffuseTextureVertShader = `#version 330
+	precision highp float;
+
+	uniform mat4 MVP_MATRIX;
+	uniform mat4 MV_MATRIX;
+	in vec3 VERTEX_POSITION;
+	in vec3 VERTEX_NORMAL;
+	in vec2 VERTEX_UV_0;
+
+	out vec3 vs_position;
+	out vec3 vs_eye_normal;
+	out vec2 vs_uv_0;
+
+	void main()
+	{
+	  vs_position = VERTEX_POSITION;
+		vs_uv_0 = VERTEX_UV_0;
+	  vs_eye_normal = normalize(mat3(MV_MATRIX) * VERTEX_NORMAL);
+	  gl_Position = MVP_MATRIX * vec4(VERTEX_POSITION, 1.0);
+	}`
+
+	DiffuseTextureFragShader = `#version 330
+	precision highp float;
+	uniform sampler2D MATERIAL_TEX_0;
+
+	uniform mat4 MV_MATRIX;
+	uniform mat4 MVP_MATRIX;
+	uniform vec4 MATERIAL_DIFFUSE;
+
+	in vec3 vs_position;
+	in vec3 vs_eye_normal;
+	in vec2 vs_uv_0;
+
+	out vec4 frag_color;
+
+	void main()
+	{
+		vec4 LIGHT_POSITION = vec4(-100.0, 100.0, 100.0, 1.0);
+		vec4 LIGHT_DIFFUSE = vec4(1.0);
+
+		vec4 eye_vertex = MV_MATRIX * vec4(vs_position, 1.0);
+		vec3 s = normalize(vec3(LIGHT_POSITION-eye_vertex));
+		float diffuseIntensity = max(dot(s,vs_eye_normal), 0.0);
+
+
+	  frag_color = MATERIAL_DIFFUSE * texture2D(MATERIAL_TEX_0, vs_uv_0) * diffuseIntensity;
+	}`
 )
 
 // GLFW event handling must run on the main OS thread
@@ -145,6 +239,8 @@ func (app *ExampleApp) InitGraphics(title string, w int, h int) {
 	app.Width = w
 	app.Height = h
 
+	gl.FrontFace(gl.CCW)
+	gl.CullFace(gl.BACK)
 	gl.Enable(gl.CULL_FACE)
 }
 
@@ -265,6 +361,12 @@ func (r *Renderable) Draw(perspective mgl.Mat4, view mgl.Mat4) {
 		gl.UniformMatrix4fv(shaderMvp, 1, false, &mvp[0])
 	}
 
+	shaderMv := getUniformLocation(r.Shader, "MV_MATRIX")
+	if shaderMv >= 0 {
+		mv := view.Mul4(model)
+		gl.UniformMatrix4fv(shaderMv, 1, false, &mv[0])
+	}
+
 	shaderTex0 := getUniformLocation(r.Shader, "DIFFUSE_TEX")
 	if shaderTex0 >= 0 {
 		gl.ActiveTexture(gl.TEXTURE0)
@@ -272,9 +374,21 @@ func (r *Renderable) Draw(perspective mgl.Mat4, view mgl.Mat4) {
 		gl.Uniform1i(shaderTex0, 0)
 	}
 
-	shaderColor := getUniformLocation(r.Shader, "DIFFUSE_COLOR")
+	shaderColor := getUniformLocation(r.Shader, "MATERIAL_DIFFUSE")
 	if shaderColor >= 0 {
 		gl.Uniform4f(shaderColor, r.Color[0], r.Color[1], r.Color[2], r.Color[3])
+	}
+
+	shaderTex1 := getUniformLocation(r.Shader, "MATERIAL_TEX_0")
+	if shaderTex1 >= 0 {
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, r.Tex0)
+		gl.Uniform1i(shaderTex1, 0)
+	}
+
+	shaderCameraWorldPos := getUniformLocation(r.Shader, "CAMERA_WORLD_POSITION")
+	if shaderCameraWorldPos >= 0 {
+		gl.Uniform3f(shaderCameraWorldPos, -view[12], -view[13], -view[14])
 	}
 
 	shaderPosition := getAttribLocation(r.Shader, "VERTEX_POSITION")
@@ -282,6 +396,13 @@ func (r *Renderable) Draw(perspective mgl.Mat4, view mgl.Mat4) {
 		gl.BindBuffer(gl.ARRAY_BUFFER, r.VertVBO)
 		gl.EnableVertexAttribArray(uint32(shaderPosition))
 		gl.VertexAttribPointer(uint32(shaderPosition), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
+	}
+
+	shaderNormal := getAttribLocation(r.Shader, "VERTEX_NORMAL")
+	if shaderNormal >= 0 {
+		gl.BindBuffer(gl.ARRAY_BUFFER, r.NormsVBO)
+		gl.EnableVertexAttribArray(uint32(shaderNormal))
+		gl.VertexAttribPointer(uint32(shaderNormal), 3, gl.FLOAT, false, 0, gl.PtrOffset(0))
 	}
 
 	shaderVertUv := getAttribLocation(r.Shader, "VERTEX_UV_0")
@@ -398,6 +519,61 @@ func LoadShaderProgram(vertShader, fragShader string) (uint32, error) {
 
 	return prog, nil
 }
+
+
+func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
+		imgFile, err := os.Open(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
+		}
+
+		img, err := png.Decode(imgFile)
+		imgFile.Close()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to decode the texture: %v\n", err)
+		}
+
+		// if the source image doesn't have alpha, set it manually
+		b := img.Bounds()
+		rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+		draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
+
+		// flip the image vertically
+		rows := b.Max.Y
+		rgba_flipped = image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
+		for dy := 0; dy < rows; dy++ {
+			sy := b.Max.Y - dy - 1
+			for dx := 0; dx < b.Max.X; dx++ {
+				soffset := sy*rgba.Stride + dx*4
+				doffset := dy*rgba_flipped.Stride + dx*4
+				copy(rgba_flipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
+			}
+		}
+
+		return rgba_flipped, nil
+}
+
+func LoadImageToTexture(filePath string) (glTex uint32, e error) {
+	gl.GenTextures(1, &glTex)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, glTex)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+
+	rgba_flipped, err := loadFile(filePath)
+	if err != nil {
+		return glTex, err
+	}
+
+	imageSize := int32(rgba_flipped.Bounds().Max.X)
+
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imageSize, imageSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba_flipped.Pix))
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+	return glTex, nil
+}
+
 
 // CreateCube makes a new Renderable object with the specified dimensions for the cube.
 func CreateCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {
@@ -529,6 +705,67 @@ func CreateSphere(radius float32, rings int, sectors int) *Renderable {
 
 	const floatSize = 4
 	const uintSize = 4
+
+	// create a VBO to hold the vertex data
+	gl.GenBuffers(1, &r.VertVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.VertVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(verts), gl.Ptr(&verts[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the uv data
+	gl.GenBuffers(1, &r.UvVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.UvVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(uvs), gl.Ptr(&uvs[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the normals data
+	gl.GenBuffers(1, &r.NormsVBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, r.NormsVBO)
+	gl.BufferData(gl.ARRAY_BUFFER, floatSize*len(normals), gl.Ptr(&normals[0]), gl.STATIC_DRAW)
+
+	// create a VBO to hold the face indexes
+	gl.GenBuffers(1, &r.ElementsVBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.ElementsVBO)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, uintSize*len(indexes), gl.Ptr(&indexes[0]), gl.STATIC_DRAW)
+
+	return r
+}
+
+// CreatePlaneXZ makes a 2d Renderable object on the XZ plane for the given size,
+// where (x0,z0) is the lower left and (x1, z1) is the upper right coordinate.
+func CreatePlaneXZ(x0, z0, x1, z1 float32, scaleUVs float32) *Renderable {
+	verts := [12]float32{
+		x0, 0.0, z0,
+		x1, 0.0, z0,
+		x0, 0.0, z1,
+		x1, 0.0, z1,
+	}
+	indexes := [6]uint32{
+		3, 2, 0,
+		0, 1, 3,
+	}
+	uvs := [8]float32{
+		0.0, 0.0,
+		scaleUVs, 0.0,
+		0.0, scaleUVs,
+		scaleUVs, scaleUVs,
+	}
+
+	normals := [12]float32{
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 1.0, 0.0,
+	}
+
+	return createPlane(x0, z0, x1, z1, verts, indexes, uvs, normals)
+}
+
+func createPlane(x0, y0, x1, y1 float32, verts [12]float32, indexes [6]uint32, uvs [8]float32, normals [12]float32) *Renderable {
+	const floatSize = 4
+	const uintSize = 4
+
+	r := NewRenderable()
+	gl.GenVertexArrays(1, &r.Vao)
+	r.FaceCount = 2
 
 	// create a VBO to hold the vertex data
 	gl.GenBuffers(1, &r.VertVBO)
