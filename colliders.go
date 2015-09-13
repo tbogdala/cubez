@@ -676,7 +676,6 @@ func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingC
 		contacts := append(existingContacts, c)
 		return true, contacts
 	}
-	return false, existingContacts
 }
 
 /*
