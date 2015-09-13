@@ -10,7 +10,9 @@ import (
 
 // Collider is an interface for collision primitive objects to make calculating collisions
 // amongst a heterogenous set of objects easier.
-
+//
+// This interface can be used in conjuection with CheckForCollisions() to check
+// for collision between two primitives without having to switch on types in client code.
 type Collider interface {
 	CalculateDerivedData()
 	GetBody() *RigidBody
@@ -87,7 +89,7 @@ func (p *CollisionPlane) CalculateDerivedData() {
 }
 
 // GetTransform returns an identity transform since the collision plane doesn't use transform matrixes.
-func (s *CollisionPlane) GetTransform() m.Matrix3x4 {
+func (p *CollisionPlane) GetTransform() m.Matrix3x4 {
 	var m m.Matrix3x4
 	m.SetIdentity()
 	return m
@@ -103,11 +105,13 @@ func (p *CollisionPlane) CheckAgainstHalfSpace(plane *CollisionPlane, existingCo
 	return false, existingContacts
 }
 
+// CheckAgainstSphere checks for collisions against a sphere.
 func (p *CollisionPlane) CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
 	// use the sphere's implementation of the check
 	return sphere.CheckAgainstHalfSpace(p, existingContacts)
 }
 
+// CheckAgainstCube checks for collisions against a cube.
 func (p *CollisionPlane) CheckAgainstCube(cube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
 	// use the cube's implemtnation of the check
 	return cube.CheckAgainstHalfSpace(p, existingContacts)
@@ -189,7 +193,7 @@ func (s *CollisionSphere) CheckAgainstCube(cube *CollisionCube, existingContacts
 	return cube.CheckAgainstSphere(s, existingContacts)
 }
 
-// CheckAgainstCube checks the sphere against collision with a sphere.
+// CheckAgainstSphere checks the sphere against collision with another sphere.
 func (s *CollisionSphere) CheckAgainstSphere(secondSphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
 	// cache the sphere positions
 	positionOne := s.transform.GetAxis(3)
@@ -505,9 +509,8 @@ func contactPoint(pOne *m.Vector3, dOne *m.Vector3, oneSize m.Real,
 	if m.RealAbs(denom) < m.Epsilon {
 		if useOne {
 			return *pOne
-		} else {
-			return *pTwo
 		}
+		return *pTwo
 	}
 
 	mua := (dpOneTwo*dpStaTwo - smTwo*dpStaOne) / denom
@@ -520,25 +523,25 @@ func contactPoint(pOne *m.Vector3, dOne *m.Vector3, oneSize m.Real,
 	if mua > oneSize || mua < -oneSize || mub > twoSize || mub < -twoSize {
 		if useOne {
 			return *pOne
-		} else {
-			return *pTwo
 		}
-	} else {
-		cOne := *dOne
-		cOne.MulWith(mua)
-		cOne.Add(pOne)
-
-		cTwo := *dTwo
-		cTwo.MulWith(mub)
-		cTwo.Add(pTwo)
-
-		cOne.MulWith(0.5)
-		cTwo.MulWith(0.5)
-		cOne.Add(&cTwo)
-		return cOne
+		return *pTwo
 	}
+
+	cOne := *dOne
+	cOne.MulWith(mua)
+	cOne.Add(pOne)
+
+	cTwo := *dTwo
+	cTwo.MulWith(mub)
+	cTwo.Add(pTwo)
+
+	cOne.MulWith(0.5)
+	cTwo.MulWith(0.5)
+	cOne.Add(&cTwo)
+	return cOne
 }
 
+// CheckAgainstCube checks for collisions against another cube.
 func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
 	// find the vector between two vectors
 	toCenter := secondCube.transform.GetAxis(3)
@@ -547,7 +550,7 @@ func (cube *CollisionCube) CheckAgainstCube(secondCube *CollisionCube, existingC
 
 	var ret bool
 	pen := m.MaxValue
-	var best int = 0xffffff
+	var best = 0xffffff
 
 	// Now we check each axis, returning if it gives a separating axis.
 	// Keep track of the smallest penetration axis.
@@ -690,23 +693,22 @@ func CheckForCollisions(one Collider, two Collider, existingContacts []*Contact)
 		otherSphere, ok := two.(*CollisionSphere)
 		if ok {
 			return one.CheckAgainstSphere(otherSphere, existingContacts)
-		} else {
-			return false, existingContacts
 		}
+		return false, existingContacts
+
 	case *CollisionCube:
 		otherCube, ok := two.(*CollisionCube)
 		if ok {
 			return one.CheckAgainstCube(otherCube, existingContacts)
-		} else {
-			return false, existingContacts
 		}
+		return false, existingContacts
+
 	case *CollisionPlane:
 		otherPlane, ok := two.(*CollisionPlane)
 		if ok {
 			return one.CheckAgainstHalfSpace(otherPlane, existingContacts)
-		} else {
-			return false, existingContacts
 		}
+		return false, existingContacts
 	}
 
 	// this is reached if we dont have a supported Check* function in the interface
