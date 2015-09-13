@@ -98,19 +98,19 @@ func (p *CollisionPlane) GetBody() *RigidBody {
 	return nil
 }
 
+// CheckAgainstHalfSpace doesn't return collisions against another plane, so this implementation is empty.
 func (p *CollisionPlane) CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact) {
-	// FIXME: implement
 	return false, existingContacts
 }
 
 func (p *CollisionPlane) CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
-	// FIXME: implement
-	return false, existingContacts
+	// use the sphere's implementation of the check
+	return sphere.CheckAgainstHalfSpace(p, existingContacts)
 }
 
-func (p *CollisionPlane) CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
-	// FIXME: implement
-	return false, existingContacts
+func (p *CollisionPlane) CheckAgainstCube(cube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
+	// use the cube's implemtnation of the check
+	return cube.CheckAgainstHalfSpace(p, existingContacts)
 }
 
 
@@ -187,14 +187,49 @@ func (s *CollisionSphere) CheckAgainstHalfSpace(plane *CollisionPlane, existingC
 
 // CheckAgainstCube checks the sphere against collision with a cube.
 func (s *CollisionSphere) CheckAgainstCube(cube *CollisionCube, existingContacts []*Contact) (bool, []*Contact) {
-	// FIXME: not implemented
-	return false, existingContacts
+	// use the cube's implementation of the check
+	return cube.CheckAgainstSphere(s, existingContacts)
 }
 
 // CheckAgainstCube checks the sphere against collision with a sphere.
-func (s *CollisionSphere) CheckAgainstSphere(cube *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
-	// FIXME: not implemented
-	return false, existingContacts
+func (s *CollisionSphere) CheckAgainstSphere(secondSphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact) {
+	// cache the sphere positions
+	positionOne := s.transform.GetAxis(3)
+	positionTwo := secondSphere.transform.GetAxis(3)
+
+	// find the vector between the objects
+	midline := positionOne
+	midline.Sub(&positionTwo)
+	size := midline.Magnitude()
+
+	// see if it is large enough to connect
+	if size <= 0.0 || size >= s.Radius + secondSphere.Radius {
+		return false, existingContacts
+	}
+
+	// we have contact
+	c := NewContact()
+
+	c.ContactPoint = midline
+	c.ContactPoint.MulWith(0.5)
+	c.ContactPoint.Add(&positionOne)
+
+	// we manually create the normal, because we have the size already calculated
+	c.ContactNormal = midline
+	c.ContactNormal.MulWith(1.0 / size)
+
+	c.Penetration = s.Radius + secondSphere.Radius - size
+	c.Bodies[0] = s.Body
+	c.Bodies[1] = secondSphere.Body
+
+	// FIXME:
+	// TODO: c.Friction and c.Restitution set here are test constants
+	c.Friction = 0.9
+	c.Restitution = 0.1
+
+	contacts := append(existingContacts, c)
+
+	return true, contacts
 }
 
 /*

@@ -87,7 +87,6 @@ Known Limitations
 
 * slim down the public interface to the library to only export what's needed
 * introduce a way to set the restitution and friction for contacts
-* finish up the collision tests for existing primitives
 
 
 Roadmap

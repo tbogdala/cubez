@@ -81,8 +81,16 @@ func generateContacts(delta float64) (bool, []*cubez.Contact) {
 			returnFound = true
 		}
 
-
-		// FIXME: not checked against other bullets
+		// check against other bullets
+		for _, bullet2 := range bullets {
+			if bullet2 == bullet {
+				continue
+			}
+			found, contacts = cubez.CheckForCollisions(bullet2.Collider, bullet.Collider, contacts)
+			if found {
+				returnFound = true
+			}
+		}
 	}
 
 	return returnFound, contacts
