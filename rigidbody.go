@@ -4,8 +4,8 @@
 package cubez
 
 import (
-	"math"
 	m "github.com/tbogdala/cubez/math"
+	"math"
 )
 
 const (
@@ -132,7 +132,6 @@ func (body *RigidBody) HasFiniteMass() bool {
 	}
 	return false
 }
-
 
 // GetMass gets the mass of the RigidBody object.
 func (body *RigidBody) GetMass() m.Real {

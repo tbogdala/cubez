@@ -588,7 +588,7 @@ func (c *Contact) calculateFrictionImpulse(inverseInertiaTensors [2]m.Matrix3) (
 	impulseContact = impulseMatrix.MulVector3(&velKill)
 
 	// check for exceeding friction
-	planarImpulse := m.RealSqrt(impulseContact[1]*impulseContact[1] +	impulseContact[2]*impulseContact[2])
+	planarImpulse := m.RealSqrt(impulseContact[1]*impulseContact[1] + impulseContact[2]*impulseContact[2])
 	if planarImpulse > impulseContact[0]*c.Friction {
 		// we need to use dynamic friction
 		impulseContact[1] /= planarImpulse

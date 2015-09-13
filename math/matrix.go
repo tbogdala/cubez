@@ -69,9 +69,9 @@ func (m *Matrix3) SetBlockInertiaTensor(halfSize *Vector3, mass Real) {
 	squares := *halfSize
 	squares.ComponentProduct(halfSize)
 	m.SetInertiaTensorCoeffs(
-		0.3 * mass * (squares[1]+squares[2]),
-		0.3 * mass * (squares[0]+squares[2]),
-		0.3 * mass * (squares[0]+squares[1]),
+		0.3*mass*(squares[1]+squares[2]),
+		0.3*mass*(squares[0]+squares[2]),
+		0.3*mass*(squares[0]+squares[1]),
 		0.0, 0.0, 0.0,
 	)
 }
@@ -161,8 +161,6 @@ func (m *Matrix3) TransformTranspose(v *Vector3) Vector3 {
 		v[0]*m[6] + v[1]*m[7] + v[2]*m[8],
 	}
 }
-
-
 
 // SetAsTransform sets the 3x4 matrix to be a transform matrix based
 // on the position and orientation passed in.

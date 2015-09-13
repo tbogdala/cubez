@@ -14,13 +14,13 @@ import (
 var (
 	app *ExampleApp
 
-	cube *Entity
+	cube      *Entity
 	backboard *Entity
-	bullets []*Entity
+	bullets   []*Entity
 
 	colorShader uint32
 	groundPlane *cubez.CollisionPlane
-	ground 	*Renderable
+	ground      *Renderable
 )
 
 // update object locations

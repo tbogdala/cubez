@@ -14,8 +14,8 @@ import (
 	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
-	m "github.com/tbogdala/cubez/math"
 	"github.com/tbogdala/cubez"
+	m "github.com/tbogdala/cubez/math"
 	"image"
 	"image/draw"
 	"image/png"
@@ -158,11 +158,11 @@ func SetGlQuat(dst *mgl.Quat, src *m.Quat) {
 }
 
 type Entity struct {
-	Node *Renderable
+	Node     *Renderable
 	Collider cubez.Collider
 }
 
-func NewEntity (node *Renderable, collider cubez.Collider) *Entity {
+func NewEntity(node *Renderable, collider cubez.Collider) *Entity {
 	e := new(Entity)
 	e.Node = node
 	e.Collider = collider
@@ -520,37 +520,36 @@ func LoadShaderProgram(vertShader, fragShader string) (uint32, error) {
 	return prog, nil
 }
 
-
 func loadFile(filePath string) (rgba_flipped *image.NRGBA, e error) {
-		imgFile, err := os.Open(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
+	imgFile, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open the texture file: %v\n", err)
+	}
+
+	img, err := png.Decode(imgFile)
+	imgFile.Close()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode the texture: %v\n", err)
+	}
+
+	// if the source image doesn't have alpha, set it manually
+	b := img.Bounds()
+	rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
+
+	// flip the image vertically
+	rows := b.Max.Y
+	rgba_flipped = image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
+	for dy := 0; dy < rows; dy++ {
+		sy := b.Max.Y - dy - 1
+		for dx := 0; dx < b.Max.X; dx++ {
+			soffset := sy*rgba.Stride + dx*4
+			doffset := dy*rgba_flipped.Stride + dx*4
+			copy(rgba_flipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
 		}
+	}
 
-		img, err := png.Decode(imgFile)
-		imgFile.Close()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to decode the texture: %v\n", err)
-		}
-
-		// if the source image doesn't have alpha, set it manually
-		b := img.Bounds()
-		rgba := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
-		draw.Draw(rgba, rgba.Bounds(), img, b.Min, draw.Src)
-
-		// flip the image vertically
-		rows := b.Max.Y
-		rgba_flipped = image.NewNRGBA(image.Rect(0, 0, b.Max.X, b.Max.Y))
-		for dy := 0; dy < rows; dy++ {
-			sy := b.Max.Y - dy - 1
-			for dx := 0; dx < b.Max.X; dx++ {
-				soffset := sy*rgba.Stride + dx*4
-				doffset := dy*rgba_flipped.Stride + dx*4
-				copy(rgba_flipped.Pix[doffset:doffset+4], rgba.Pix[soffset:soffset+4])
-			}
-		}
-
-		return rgba_flipped, nil
+	return rgba_flipped, nil
 }
 
 func LoadImageToTexture(filePath string) (glTex uint32, e error) {
@@ -573,7 +572,6 @@ func LoadImageToTexture(filePath string) (glTex uint32, e error) {
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 	return glTex, nil
 }
-
 
 // CreateCube makes a new Renderable object with the specified dimensions for the cube.
 func CreateCube(xmin, ymin, zmin, xmax, ymax, zmax float32) *Renderable {

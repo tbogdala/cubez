@@ -4,8 +4,8 @@
 package cubez
 
 import (
-	"math"
 	m "github.com/tbogdala/cubez/math"
+	"math"
 )
 
 // Collider is an interface for collision primitive objects to make calculating collisions
@@ -113,8 +113,6 @@ func (p *CollisionPlane) CheckAgainstCube(cube *CollisionCube, existingContacts 
 	return cube.CheckAgainstHalfSpace(p, existingContacts)
 }
 
-
-
 /*
 ==================================================================================================
   COLLISION SPHERE
@@ -203,7 +201,7 @@ func (s *CollisionSphere) CheckAgainstSphere(secondSphere *CollisionSphere, exis
 	size := midline.Magnitude()
 
 	// see if it is large enough to connect
-	if size <= 0.0 || size >= s.Radius + secondSphere.Radius {
+	if size <= 0.0 || size >= s.Radius+secondSphere.Radius {
 		return false, existingContacts
 	}
 
@@ -390,8 +388,8 @@ func (cube *CollisionCube) CheckAgainstSphere(sphere *CollisionSphere, existingC
 
 	c.Penetration = sphere.Radius
 	if !m.RealEqual(dist, 0.0) {
-	 c.Penetration -= m.RealSqrt(dist)
- 	} else {
+		c.Penetration -= m.RealSqrt(dist)
+	} else {
 		c.Penetration = 0.0
 	}
 	c.Bodies[0] = cube.Body
@@ -691,21 +689,21 @@ func CheckForCollisions(one Collider, two Collider, existingContacts []*Contact)
 	case *CollisionSphere:
 		otherSphere, ok := two.(*CollisionSphere)
 		if ok {
-    	return one.CheckAgainstSphere(otherSphere, existingContacts)
+			return one.CheckAgainstSphere(otherSphere, existingContacts)
 		} else {
 			return false, existingContacts
 		}
 	case *CollisionCube:
 		otherCube, ok := two.(*CollisionCube)
 		if ok {
-    	return one.CheckAgainstCube(otherCube, existingContacts)
+			return one.CheckAgainstCube(otherCube, existingContacts)
 		} else {
 			return false, existingContacts
 		}
 	case *CollisionPlane:
 		otherPlane, ok := two.(*CollisionPlane)
 		if ok {
-    	return one.CheckAgainstHalfSpace(otherPlane, existingContacts)
+			return one.CheckAgainstHalfSpace(otherPlane, existingContacts)
 		} else {
 			return false, existingContacts
 		}

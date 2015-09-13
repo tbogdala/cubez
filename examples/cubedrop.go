@@ -18,11 +18,11 @@ const (
 
 var (
 	diffuseShader uint32
-	app         *ExampleApp
-	cubes       []*Entity
-	groundPlane *cubez.CollisionPlane
-	ground 	*Renderable
-	crateTexture uint32
+	app           *ExampleApp
+	cubes         []*Entity
+	groundPlane   *cubez.CollisionPlane
+	ground        *Renderable
+	crateTexture  uint32
 )
 
 // update object locations
@@ -155,12 +155,12 @@ func fire() {
 		e.Node = CreateCube(-0.5, -0.5, -0.5, 0.5, 0.5, 0.5)
 		e.Node.Shader = diffuseShader
 		e.Node.Color = mgl.Vec4{1.0, 1.0, 1.0, 1.0}
-		e.Node.Location = mgl.Vec3{float32(i*2.0 - cubesToMake/2) - 0.5 + offset, 10.0, 0.0}
+		e.Node.Location = mgl.Vec3{float32(i*2.0-cubesToMake/2) - 0.5 + offset, 10.0, 0.0}
 		e.Node.Tex0 = crateTexture
 
 		// create the collision box for the the cube
 		cubeCollider := cubez.NewCollisionCube(nil, m.Vector3{0.5, 0.5, 0.5})
-		cubeCollider.Body.Position = m.Vector3{m.Real(i*2.0 - cubesToMake/2) - 0.5 + m.Real(offset), 10.0, 0.0}
+		cubeCollider.Body.Position = m.Vector3{m.Real(i*2.0-cubesToMake/2) - 0.5 + m.Real(offset), 10.0, 0.0}
 		cubeCollider.Body.SetMass(8.0)
 		cubeCollider.Body.CanSleep = true
 
