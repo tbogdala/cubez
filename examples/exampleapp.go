@@ -737,8 +737,8 @@ func CreatePlaneXZ(x0, z0, x1, z1 float32, scaleUVs float32) *Renderable {
 		x1, 0.0, z1,
 	}
 	indexes := [6]uint32{
-		3, 2, 0,
-		0, 1, 3,
+		0, 1, 2,
+		1, 3, 2,
 	}
 	uvs := [8]float32{
 		0.0, 0.0,
