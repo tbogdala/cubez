@@ -5,7 +5,6 @@ package cubez
 
 import (
 	m "github.com/tbogdala/cubez/math"
-	"math"
 )
 
 // Collider is an interface for collision primitive objects to make calculating collisions
@@ -14,8 +13,10 @@ import (
 // This interface can be used in conjuection with CheckForCollisions() to check
 // for collision between two primitives without having to switch on types in client code.
 type Collider interface {
+	Clone() Collider
 	CalculateDerivedData()
 	GetBody() *RigidBody
+	GetTransform() m.Matrix3x4
 	CheckAgainstHalfSpace(plane *CollisionPlane, existingContacts []*Contact) (bool, []*Contact)
 	CheckAgainstSphere(sphere *CollisionSphere, existingContacts []*Contact) (bool, []*Contact)
 	CheckAgainstCube(secondCube *CollisionCube, existingContacts []*Contact) (bool, []*Contact)
@@ -84,6 +85,12 @@ func NewCollisionPlane(n m.Vector3, o m.Real) *CollisionPlane {
 	return plane
 }
 
+// Clone makes a new copy of the CollisionPlane object
+func (p *CollisionPlane) Clone() Collider {
+	newPlane := NewCollisionPlane(p.Normal, p.Offset)
+	return newPlane
+}
+
 // CalculateDerivedData currently doesn't do anything for planes.
 func (p *CollisionPlane) CalculateDerivedData() {
 }
@@ -135,6 +142,18 @@ func NewCollisionSphere(optBody *RigidBody, radius m.Real) *CollisionSphere {
 		s.Body = NewRigidBody()
 	}
 	return s
+}
+
+// Clone makes a new copy of the CollisionSphere object
+func (s *CollisionSphere) Clone() Collider {
+	var bClone *RigidBody
+	if s.Body != nil {
+		bClone = s.Body.Clone()
+	}
+	newSphere := NewCollisionSphere(bClone, s.Radius)
+	newSphere.Offset = s.Offset
+	newSphere.transform = s.transform
+	return newSphere
 }
 
 // GetTransform returns a copy of the transform matrix for the collider object.
@@ -252,6 +271,18 @@ func NewCollisionCube(optBody *RigidBody, halfSize m.Vector3) *CollisionCube {
 		cube.Body = NewRigidBody()
 	}
 	return cube
+}
+
+// Clone makes a new copy of the CollisionCube object
+func (cube *CollisionCube) Clone() Collider {
+	var bClone *RigidBody
+	if cube.Body != nil {
+		bClone = cube.Body.Clone()
+	}
+	newCube := NewCollisionCube(bClone, cube.HalfSize)
+	newCube.Offset = cube.Offset
+	newCube.transform = cube.transform
+	return newCube
 }
 
 // GetTransform returns a copy of the transform matrix for the collider object.
@@ -733,7 +764,7 @@ func transformToAxis(cube *CollisionCube, axis *m.Vector3) m.Real {
 	cubeAxisY := cube.transform.GetAxis(1)
 	cubeAxisZ := cube.transform.GetAxis(2)
 
-	return cube.HalfSize[0]*m.Real(math.Abs(float64(axis.Dot(&cubeAxisX)))) +
-		cube.HalfSize[1]*m.Real(math.Abs(float64(axis.Dot(&cubeAxisY)))) +
-		cube.HalfSize[2]*m.Real(math.Abs(float64(axis.Dot(&cubeAxisZ))))
+	return cube.HalfSize[0]*m.RealAbs(axis.Dot(&cubeAxisX)) +
+		cube.HalfSize[1]*m.RealAbs(axis.Dot(&cubeAxisY)) +
+		cube.HalfSize[2]*m.RealAbs(axis.Dot(&cubeAxisZ))
 }

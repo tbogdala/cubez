@@ -107,9 +107,17 @@ func NewRigidBody() *RigidBody {
 	body.LinearDamping = defaultLinearDamping
 	body.AngularDamping = defaultLinearDamping
 	body.Acceleration = defaultAcceleration
+	body.inverseInertiaTensorWorld.SetIdentity()
 	body.CanSleep = true
 	body.SetAwake(true)
 	return body
+}
+
+// Clone makes a new RigidBody object with the current data of the RigidBody this is called on.
+func (body *RigidBody) Clone() *RigidBody {
+	newBody := NewRigidBody()
+	*newBody = *body
+	return newBody
 }
 
 // SetMass sets the mass of the RigidBody object.
