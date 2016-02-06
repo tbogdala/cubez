@@ -11,15 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"image"
+	"image/draw"
+	"image/png"
+	"os"
+
 	gl "github.com/go-gl/gl/v3.3-core/gl"
 	glfw "github.com/go-gl/glfw/v3.1/glfw"
 	mgl "github.com/go-gl/mathgl/mgl32"
 	"github.com/tbogdala/cubez"
 	m "github.com/tbogdala/cubez/math"
-	"image"
-	"image/draw"
-	"image/png"
-	"os"
 )
 
 var (
@@ -133,7 +134,7 @@ var (
 		float diffuseIntensity = max(dot(s,vs_eye_normal), 0.0);
 
 
-	  frag_color = MATERIAL_DIFFUSE * texture2D(MATERIAL_TEX_0, vs_uv_0) * diffuseIntensity;
+	  frag_color = MATERIAL_DIFFUSE * texture(MATERIAL_TEX_0, vs_uv_0) * diffuseIntensity;
 	}`
 )
 
