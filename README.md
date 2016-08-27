@@ -1,5 +1,5 @@
-Cubez
-======
+Cubez v0.1.0
+============
 
 Cubez is a 3d physics library written in the [Go][golang] programming language. It is
  mostly a port of [cyclone-physics][cyclone] by Ian Millington and using his book
